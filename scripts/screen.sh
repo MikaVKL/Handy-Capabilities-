@@ -1,0 +1,5 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# Screenshot machen; gibt den Dateipfad aus (danach mit Read ansehen).
+. "$(dirname "$0")/lib.sh"; step_guard screenshot
+out="$STATE/screen.png"
+adb exec-out screencap -p > "$out" && echo "$out"
