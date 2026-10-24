@@ -264,7 +264,11 @@ def cmd_calibrate(args):
     os.makedirs(os.path.dirname(CALIB), exist_ok=True)
     json.dump(cal, open(CALIB, "w"))
     if "--values" in args:
-        known = S.parse(args[args.index("--values") + 1])
+        i = args.index("--values") + 1
+        toks = []
+        while i < len(args) and not args[i].startswith("--"):
+            toks.append(args[i]); i += 1
+        known = S.parse(" ".join(toks))     # auch ohne Anführungszeichen: die Wörter werden wieder zusammengesetzt
         ref = tuple(cal["gap_ref"])
         save_samples([(v, norm_color(fr, rect, i // 4, i % 4, ref)) for i, v in enumerate(known)])
     print(f"Brett: {rect}")
@@ -376,6 +380,8 @@ def main(argv):
         return {"calibrate": cmd_calibrate, "read": cmd_read, "play": cmd_play, "probe": cmd_probe, "cells": cmd_cells}[argv[1]](argv[2:])
     except Unclear as e:
         print(f"UNKLAR: {e}", file=sys.stderr); return 3
+    except ValueError as e:
+        print(f"Eingabefehler: {e}. Beispiel: --values \"0 0 0 0/0 0 2 0/0 0 0 2/0 0 0 0\"", file=sys.stderr); return 2
 
 if __name__ == "__main__":
     try:

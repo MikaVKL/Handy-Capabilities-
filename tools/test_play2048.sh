@@ -62,6 +62,8 @@ check "dunkel: Lesen nach Nachlernen"  '[ "$($P read)" = "$(truth)" ]'
 init 4; rm -f "$HANDY_DIR/state/steps"
 out=$($P play 50 --settle 0); sc=$(python3 -c "import json,os;print(json.load(open(os.environ['FAKE_STATE']))['score'])")
 check "dunkel: 50 Züge, Punktestand stimmt" 'echo "$out" | grep -q "Züge: 50, geschätzter Punktestand: $sc,"'
+check "--values auch ohne Anführungszeichen" 'rm -f "$HANDY_DIR/state/2048-calib.json"; $P calibrate >/dev/null; $P calibrate --values 0 0 0 0/0 0 0 0/0 0 0 0/2 2 0 0 | grep -q "Brett:"'
+check "--values: verständlicher Eingabefehler" '$P calibrate --values "1 2 3" 2>&1 | grep -q "Eingabefehler"'
 # Nur das Startbrett ist bekannt, alle weiteren Farben lernt das Skript beim Spielen selbst
 init 6; rm -f "$HANDY_DIR/state/2048-calib.json" "$HANDY_DIR/state/steps"
 $P calibrate >/dev/null; $P calibrate --values "$(truth)" >/dev/null
