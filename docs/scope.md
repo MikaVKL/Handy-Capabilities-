@@ -9,6 +9,11 @@ Ziel: bei Bedarf eine beliebige (unkritische) App ausprobieren und sehen, wie vi
    an: Paketname, was `ui.sh` liefert, die wichtigsten Elemente mit Position, Eigenheiten (Werbung, Dialoge), empfohlene Stufe."
 4. **Aufgabe stellen** und Zeit/Aufrufe mit `bench.sh` festhalten.
 
+## Reines Wiederholen ohne Modell
+`repeat.sh DURCHLÄUFE PAUSE "tap X Y" "wait 1" …` führt eine Kette bis zu 500 Mal aus (App-Sperre, STOP-Datei und STOPP-Knopf gelten).
+Für Wiederholungen ist das schneller und kostet kein Kontingent; Claude lohnt sich nur für Entscheidungen.
+Nur in Apps nutzen, in denen automatisierte Eingaben erlaubt sind (Regeln der App und des Anbieters prüfen).
+
 ## Ampel (Orientierung für die Freigabe, die Entscheidung liegt bei dir)
 - **Grün:** keine persönlichen Daten, alles rückgängig zu machen (Rechner, Uhr, Spiele ohne Konto, Tipps).
 - **Gelb:** persönliche, aber harmlose Daten (Kalender, Notizen). Nur mit Rückfrage vor Änderungen und Löschen.
