@@ -16,7 +16,7 @@ step_guard() {
     echo "STOPP: Schrittlimit ($MAX_STEPS) erreicht" >&2; log "Schrittlimit"; exit 1
   fi
   echo "$n" > "$STATE/steps"
-  log "schritt $n: $*"
+  log "schritt $n${HANDY_IN_BATCH:+ [b]}: $*"
   # Bildschirm wecken (tut nichts, wenn er schon an ist), damit keine schwarzen Screenshots entstehen
   adb shell input keyevent KEYCODE_WAKEUP >/dev/null 2>&1 || true
 }
