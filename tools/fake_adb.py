@@ -55,6 +55,13 @@ def render(st):
         if v:   # "Ziffer" in der Mitte, damit die Abtastung abseits der Mitte getestet wird
             mx, my = (tx1 + tx2) // 2, (ty1 + ty2) // 2
             fill(data, mx - 40, my - 30, mx + 40, my + 30, (119, 110, 101))
+    if st.get("ad"):      # abgedunkelte Werbeschicht über dem Brett
+        for y in range(y1, y2):
+            o = (y * W + x1) * 4
+            seg = bytearray(data[o:o + (x2 - x1) * 4])
+            for k in range(0, len(seg), 4):
+                seg[k] = int(seg[k] * 0.7); seg[k+1] = int(seg[k+1] * 0.7); seg[k+2] = int(seg[k+2] * 0.7)
+            data[o:o + len(seg)] = seg
     if st.get("over"):    # halbtransparentes Weiß über dem Brett wie bei "Game over"
         for y in range(y1, y2, 1):
             o = (y * W + x1) * 4
@@ -80,7 +87,13 @@ def main(a):
         sys.stdout.buffer.write(render(st)); return 0
     if a[:2] == ["shell", "dumpsys"]:
         print(f"  mCurrentFocus=Window{{1 u0 {st.get('fg', 'com.gabrielecirulli.app2048')}/x.Y}}"); return 0
+    if a[:3] == ["shell", "input", "keyevent"]:
+        if len(a) > 3 and a[3] == "4" and st.get("ad"):
+            st["ad"] = False; save(st)
+        return 0
     if a[:3] == ["shell", "input", "swipe"]:
+        if st.get("ad"):
+            return 0
         x1, y1, x2, y2 = (int(v) for v in a[3:7])
         dx, dy = x2 - x1, y2 - y1
         d = ("right" if dx > 0 else "left") if abs(dx) > abs(dy) else ("down" if dy > 0 else "up")
@@ -92,6 +105,8 @@ def main(a):
             st["moves"] = st.get("moves", 0) + 1
             if os.environ.get("FAKE_OVER_AFTER") and st["moves"] >= int(os.environ["FAKE_OVER_AFTER"]):
                 st["over"] = True
+            if os.environ.get("FAKE_AD_AT") and st["moves"] == int(os.environ["FAKE_AD_AT"]):
+                st["ad"] = True
             st["board"] = list(nb); save(st)
         return 0
     return 0

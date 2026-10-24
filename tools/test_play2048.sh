@@ -50,6 +50,10 @@ check "ADB nicht verbunden: lesbare Meldung" 'out=$(FAKE_FAIL=1 $P read 2>&1); e
 init 8; rm -f "$HANDY_DIR/state/steps"
 check "Abbruch: Zugzähler zählt nur echte Züge" 'out=$(FAKE_OVER_AFTER=3 $P play 30 --settle 0 2>&1); echo "$out" | grep -q "STOPP" && echo "$out" | grep -q "Züge: 3,"'
 check "Abbruch: nennt abweichende Felder"      'echo "$out" | grep -q "erwartet"'
+init 9; rm -f "$HANDY_DIR/state/steps"
+check "Werbung mittendrin: Zurück-Taste, Lauf geht weiter" 'out=$(FAKE_AD_AT=5 $P play 20 --settle 0 2>&1); echo "$out" | grep -q "drücke Zurück" && echo "$out" | grep -q "Züge: 20," && ! echo "$out" | grep -q STOPP'
+sc=$(python3 -c "import json,os;print(json.load(open(os.environ['FAKE_STATE']))['score'])")
+check "Werbung mittendrin: Punktestand stimmt"            'echo "$out" | grep -q "geschätzter Punktestand: $sc,"'
 # --- Dunkles Design mit Lichtschein (ähnlich der echten App) ---
 export FAKE_THEME=dark; rm -f "$HANDY_DIR/state/2048-calib.json" "$HANDY_DIR/state/steps"
 python3 - <<'PY'

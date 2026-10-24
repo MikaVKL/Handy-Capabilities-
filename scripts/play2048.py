@@ -19,6 +19,7 @@ import solve2048 as S
 HANDY = os.environ.get("HANDY_DIR", os.path.expanduser("~/handy"))
 CALIB = os.path.join(HANDY, "state", "2048-calib.json")
 SWIPE = os.environ.get("SWIPE_SCRIPT", os.path.join(os.path.dirname(os.path.abspath(__file__)), "swipe.sh"))
+KEY = os.path.join(os.path.dirname(SWIPE), "key.sh")
 BOARD_BG = (187, 173, 160)
 PALETTE = {0: (205, 193, 180), 2: (238, 228, 218), 4: (237, 224, 200), 8: (242, 177, 121), 16: (245, 149, 99),
            32: (246, 124, 95), 64: (246, 94, 59), 128: (237, 207, 114), 256: (237, 204, 97), 512: (237, 200, 80),
@@ -335,6 +336,7 @@ def cmd_play(args):
     halted = False
     last_cols = last_pred = None
     folge = []
+    back_used = 0
     t0 = time.time()
     board = read_board(grab(), rect, pal, ref)
     while done < n:
@@ -355,30 +357,37 @@ def cmd_play(args):
             time.sleep(settle)
             pred = S.move(board, dname)[0]
             new, err = None, None
-            for attempt in range(3):
-                try:
-                    fr = grab()
-                    cols = [norm_color(fr, rect, i // 4, i % 4, ref) for i in range(16)]
-                except Unclear as e:
-                    err = e; time.sleep(0.5); continue
-                ok, nb, learned = check(cols, pred, pal, True)
-                if ok:
-                    new = nb
-                    new_samples = [(v, c) for v, c in learned if not any(abs(v - w) == 0 and dist(c, rgb) < 3 for w, rgb in pal)]
-                    if new_samples:
-                        save_samples(new_samples); pal = load()[1]
-                        print("Neu gelernt:", ", ".join(f"{v}={c}" for v, c in new_samples), flush=True)
-                    stuck = 0; score += g
+            for _round in range(3):          # nach einem Fehlschlag: bis zu 2x Zurück-Taste (Werbung), dann erneut prüfen
+                for attempt in range(3):
+                    try:
+                        fr = grab()
+                        cols = [norm_color(fr, rect, i // 4, i % 4, ref) for i in range(16)]
+                    except Unclear as e:
+                        err = e; time.sleep(0.5); continue
+                    ok, nb, learned = check(cols, pred, pal, True)
+                    if ok:
+                        new = nb
+                        new_samples = [(v, c) for v, c in learned if not any(abs(v - w) == 0 and dist(c, rgb) < 3 for w, rgb in pal)]
+                        if new_samples:
+                            save_samples(new_samples); pal = load()[1]
+                            print("Neu gelernt:", ", ".join(f"{v}={c}" for v, c in new_samples), flush=True)
+                        stuck = 0; score += g
+                        break
+                    ok0, _, _ = check(cols, board, pal, False)
+                    if ok0:                    # Wisch ohne Wirkung: Brett unverändert
+                        new = board; stuck += 1
+                        if stuck >= 3:
+                            print("STOPP: Brett ändert sich nicht (festgefahren oder falsch gelesen)"); halted = True
+                        break
+                    last_cols, last_pred = cols, pred
+                    err = Unclear("Bild passt weder zum erwarteten noch zum alten Brett (Animation, Werbung oder verdeckt?)")
+                    time.sleep(0.5)
+                if new is not None or back_used >= 2:
                     break
-                ok0, _, _ = check(cols, board, pal, False)
-                if ok0:                    # Wisch ohne Wirkung: Brett unverändert
-                    new = board; stuck += 1
-                    if stuck >= 3:
-                        print("STOPP: Brett ändert sich nicht (festgefahren oder falsch gelesen)"); halted = True
-                    break
-                last_cols, last_pred = cols, pred
-                err = Unclear("Bild passt weder zum erwarteten noch zum alten Brett (Animation, Werbung oder verdeckt?)")
-                time.sleep(0.5)
+                back_used += 1
+                print("Bild passt nicht (Werbung?): drücke Zurück und prüfe erneut", flush=True)
+                subprocess.run([KEY, "back"], env=env, capture_output=True)
+                time.sleep(1.5)
             if new is None:
                 print(f"STOPP: {err}")
                 if last_cols is not None:
