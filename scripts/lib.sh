@@ -23,7 +23,9 @@ step_guard() {
   echo "$n" > "$STATE/steps"
   log "schritt $n${HANDY_IN_BATCH:+ [b]}: $*"
   # Bildschirm wecken (tut nichts, wenn er schon an ist), damit keine schwarzen Screenshots entstehen
-  adb shell input keyevent KEYCODE_WAKEUP >/dev/null 2>&1 || true
+  if [ -z "$HANDY_NO_WAKE" ] || [ $((n % 10)) -eq 1 ]; then
+    adb shell input keyevent KEYCODE_WAKEUP >/dev/null 2>&1 || true
+  fi
 }
 
 # Paketname der App im Vordergrund (leer, wenn nicht ermittelbar).

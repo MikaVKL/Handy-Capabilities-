@@ -36,3 +36,8 @@ Regel: Zuerst `ui.sh`. Liefert es Elemente, den Textbaum nutzen; meldet es `LEER
 - Nach jedem Zug ein Screenshot: etwa 10 s pro Zug. 4er-Ketten blind: etwa 6 s pro Zug, aber festgefahrene Züge ohne Prüfung.
 - Simulation (ganze Spiele): 1 Zug blind ≈ 14.900 Punkte, 2 ≈ 11.500, 3 ≈ 5.500, 4 ≈ 2.800. Blinde Ketten kosten viel Qualität.
 - Werbung (Ladekreis, Vollbild) kostet Zeit; im Steckbrief regeln.
+- **Lokaler Spieler (Stufe 5) auf dem A57, ein Lauf:** 40 Züge in 112 s (2,8 s pro Zug), keine Modellaufrufe, Punktestand und Brett
+  stimmten mit dem Bildschirm überein, alle vier Richtungen kamen vor, eine Werbung wurde per Zurück-Taste umgangen.
+  Zum Vergleich pro Zug: Sonnet etwa 16 s, Haiku etwa 11 s (jeweils mit Screenshot nach jedem Zug).
+- Zeitaufteilung des lokalen Spielers wird seit der Zeitmessung (`Zeit pro Zug: …`) ausgegeben; Schätzung davor:
+  Bild holen etwa 1 s, App-Sperre (`dumpsys`) etwa 0,5 s, `input swipe`-Start etwa 0,4 s, Warten 0,35 s, Rechnen etwa 0,3 s.

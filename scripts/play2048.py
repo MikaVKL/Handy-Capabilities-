@@ -331,7 +331,8 @@ def cmd_play(args):
         rect = find_board(grab())
     x1, y1, x2, y2 = rect
     cx, cy, d = (x1 + x2) // 2, (y1 + y2) // 2, int((x2 - x1) * 0.3)
-    env = dict(os.environ); env.setdefault("MAX_STEPS", str(n + 10))
+    env = dict(os.environ); env.setdefault("MAX_STEPS", str(n + 10)); env.setdefault("HANDY_NO_WAKE", "1")
+    tm = {"Wischen": 0.0, "Warten": 0.0, "Bild+Prüfen": 0.0, "Rechnen": 0.0}
     score = done = stuck = 0
     halted = False
     last_cols = last_pred = None
@@ -340,7 +341,7 @@ def cmd_play(args):
     t0 = time.time()
     board = read_board(grab(), rect, pal, ref)
     while done < n:
-        seq = S.plan(board, 1)
+        t = time.time(); seq = S.plan(board, 1); tm["Rechnen"] += time.time() - t
         if not seq:
             print("SPIEL VORBEI (kein Zug mehr möglich)"); break
         for dname in seq:
@@ -348,13 +349,14 @@ def cmd_play(args):
                 break
             x1s, y1s, x2s, y2s = {"left": (cx + d, cy, cx - d, cy), "right": (cx - d, cy, cx + d, cy),
                                   "up": (cx, cy + d, cx, cy - d), "down": (cx, cy - d, cx, cy + d)}[dname]
-            r = subprocess.run([SWIPE, str(x1s), str(y1s), str(x2s), str(y2s), "150"], env=env)
+            t = time.time(); r = subprocess.run([SWIPE, str(x1s), str(y1s), str(x2s), str(y2s), "150"], env=env); tm["Wischen"] += time.time() - t
             if r.returncode != 0:
                 print(f"ABBRUCH: swipe.sh endete mit Code {r.returncode}"); return r.returncode
             done += 1
             folge.append(dname[0].upper())
             _, g, _ = S.move(board, dname)
-            time.sleep(settle)
+            t = time.time(); time.sleep(settle); tm["Warten"] += time.time() - t
+            t = time.time()
             pred = S.move(board, dname)[0]
             new, err = None, None
             for _round in range(3):          # nach einem Fehlschlag: bis zu 2x Zurück-Taste (Werbung), dann erneut prüfen
@@ -388,6 +390,7 @@ def cmd_play(args):
                 print("Bild passt nicht (Werbung?): drücke Zurück und prüfe erneut", flush=True)
                 subprocess.run([KEY, "back"], env=env, capture_output=True)
                 time.sleep(1.5)
+            tm["Bild+Prüfen"] += time.time() - t
             if new is None:
                 print(f"STOPP: {err}")
                 if last_cols is not None:
@@ -403,6 +406,7 @@ def cmd_play(args):
             break
     secs = time.time() - t0
     print(f"Züge: {done}, geschätzter Punktestand: {score}, größte Kachel: {max(board)}, Dauer: {secs:.0f}s ({secs/max(done,1):.1f}s pro Zug)")
+    print("Zeit pro Zug: " + ", ".join(f"{k} {v / max(done, 1):.2f}s" for k, v in tm.items()))
     print("Brett:", fmt(board))
     print("Folge:", " ".join(folge), "  (L links, R rechts, U oben, D unten)")
     return 0
