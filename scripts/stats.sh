@@ -16,6 +16,8 @@ actions=$(printf '%s\n' "$run" | grep -E 'schritt [0-9]+( \[b\])?: ' | grep -vc 
 batches=$(printf '%s\n' "$run" | grep -c 'aufruf batch')
 single=$(printf '%s\n' "$run" | grep -cE 'schritt [0-9]+: ')
 calls=$((single + batches))
+spc=$(awk "BEGIN{ if ($calls>0) printf \"%.1f\", $dur/$calls; else print 0 }")
+if [ -n "$STATS_CSV" ]; then echo "$dur;$shots;$actions;$calls;$spc"; exit 0; fi
 echo "Dauer (erster bis letzter Schritt): ${dur}s"
 echo "Screenshots: $shots   Aktionen (ohne Screenshot): $actions"
 echo "Skript-Aufrufe (Modellrunden, grob): $calls   davon Ketten: $batches"
