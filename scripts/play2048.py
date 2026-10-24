@@ -3,9 +3,12 @@
 
   play2048.py calibrate [--board X1 Y1 X2 Y2] [--values "2 0 0 0/0 4 0 0/0 0 0 0/0 0 0 2"]
       Findet das Brett (ohne --board automatisch über die Hintergrundfarbe), speichert es und zeigt das gelesene Brett.
-      Mit --values (das Brett, wie es auf dem Bildschirm steht) werden die Farben dieser Zahlen nachgelernt.
+      Mit --values (das Brett, wie es auf dem Bildschirm steht) werden die Farben dieser Zahlen nachgelernt;
+      dabei wird das schon gefundene Brett wiederverwendet. Die automatische Suche braucht freie Felder in allen Zeilen
+      und Spalten, also am besten direkt nach einem neuen Spiel.
   play2048.py read            Brett einmal lesen und ausgeben
-  play2048.py probe           Diagnose: große einfarbige Flächen mit Farbe und Position (für die Anpassung an die App)
+  play2048.py probe           Diagnose: große einfarbige Flächen mit Farbe und Position
+  play2048.py cells [--board X1 Y1 X2 Y2]   Diagnose: Farbe jedes Feldes und nächster Palettenwert
   play2048.py play N [--settle 0.35]   N Züge spielen (nach jedem Zug wird das Brett neu gelesen und neu geplant)
 Voraussetzung: Handy zeigt 2048 im Vordergrund. Wischen läuft über swipe.sh (App-Sperre, STOP-Datei, Schrittlimit gelten).
 """
@@ -56,29 +59,77 @@ def med(fr, x, y, r=2):
 def dist(a, b):
     return sum((x - y) ** 2 for x, y in zip(a, b)) ** 0.5
 
-def find_board(fr):
-    """Größte zusammenhängende Fläche in der Brett-Hintergrundfarbe (grobes Raster, Flutfüllung)."""
+def components(fr, tol=6, min_pts=150, neighbor=False):
+    """Zusammenhängende einfarbige Flächen (grobes Raster). neighbor=True vergleicht mit dem Nachbarpunkt
+    (verträgt sanfte Farbverläufe), sonst mit dem Startpunkt der Fläche."""
     _, w, h, _ = fr
     step = 6
     gw, gh = w // step, h // step
-    mask = [[dist(px(fr, gx * step, gy * step), BOARD_BG) < 10 for gx in range(gw)] for gy in range(gh)]
-    seen, best = set(), (0, None)
+    grid = [[px(fr, gx * step + 3, gy * step + 3) for gx in range(gw)] for gy in range(gh)]
+    seen, comps = [[False] * gw for _ in range(gh)], []
     for gy in range(gh):
         for gx in range(gw):
-            if mask[gy][gx] and (gx, gy) not in seen:
-                stack, cells = [(gx, gy)], []
-                seen.add((gx, gy))
-                while stack:
-                    cx, cy = stack.pop(); cells.append((cx, cy))
-                    for nx, ny in ((cx+1, cy), (cx-1, cy), (cx, cy+1), (cx, cy-1)):
-                        if 0 <= nx < gw and 0 <= ny < gh and mask[ny][nx] and (nx, ny) not in seen:
-                            seen.add((nx, ny)); stack.append((nx, ny))
-                if len(cells) > best[0]:
-                    xs, ys = [c[0] for c in cells], [c[1] for c in cells]
-                    best = (len(cells), (min(xs) * step, min(ys) * step, (max(xs) + 1) * step, (max(ys) + 1) * step))
-    if not best[1]:
-        raise Unclear("Brett nicht gefunden (Hintergrundfarbe nicht erkannt). Zeigt das Handy 2048?")
-    return best[1]
+            if seen[gy][gx]:
+                continue
+            seed, stack, xs, ys, cols = grid[gy][gx], [(gx, gy)], [], [], []
+            seen[gy][gx] = True
+            while stack:
+                cx, cy = stack.pop(); xs.append(cx); ys.append(cy); cols.append(grid[cy][cx])
+                ref = grid[cy][cx] if neighbor else seed
+                for nx, ny in ((cx+1, cy), (cx-1, cy), (cx, cy+1), (cx, cy-1)):
+                    if 0 <= nx < gw and 0 <= ny < gh and not seen[ny][nx] and dist(grid[ny][nx], ref) < tol:
+                        seen[ny][nx] = True; stack.append((nx, ny))
+            if len(xs) >= min_pts:
+                mid = tuple(sorted(c[i] for c in cols)[len(cols) // 2] for i in range(3))
+                comps.append((len(xs), mid, (min(xs) * step, min(ys) * step, (max(xs) + 1) * step, (max(ys) + 1) * step)))
+    comps.sort(key=lambda c: -c[0])
+    return comps
+
+def cluster(vals, tol=14):
+    out = []
+    for v in sorted(vals):
+        if out and v - out[-1][-1] <= tol:
+            out[-1].append(v)
+        else:
+            out.append([v])
+    return [sum(c) / len(c) for c in out]
+
+def find_board_by_cells(fr):
+    """Leere Felder sind gleich große, gleichfarbige Quadrate in einem 4x4-Raster."""
+    squares = []
+    for n, col, (a, b, c, d) in components(fr, tol=9, min_pts=120, neighbor=True):
+        wd, ht = c - a, d - b
+        if 80 <= wd <= 420 and 0.85 <= wd / ht <= 1.18:
+            squares.append((col, a, b, c, d))
+    best = []
+    for col, a, b, c, d in squares:
+        grp = [q for q in squares if dist(q[0], col) < 14 and abs((q[3] - q[1]) - (c - a)) <= 0.1 * (c - a)]
+        if len(grp) > len(best):
+            best = grp
+    if len(best) < 4:
+        raise Unclear("Brett nicht gefunden (zu wenige leere Felder erkennbar). Neues Spiel starten und erneut versuchen.")
+    size = sorted(q[3] - q[1] for q in best)[len(best) // 2]
+    lefts, tops = cluster([q[1] for q in best]), cluster([q[2] for q in best])
+    if len(lefts) < 2 or len(tops) < 2:
+        raise Unclear("Brett nicht eindeutig (nur eine Spalte oder Zeile leer). Neues Spiel starten.")
+    pitch_x = min(lefts[i + 1] - lefts[i] for i in range(len(lefts) - 1))
+    pitch_y = min(tops[i + 1] - tops[i] for i in range(len(tops) - 1))
+    pitch = (pitch_x + pitch_y) / 2
+    ncols = round((lefts[-1] - lefts[0]) / pitch) + 1
+    nrows = round((tops[-1] - tops[0]) / pitch) + 1
+    if ncols != 4 or nrows != 4:
+        raise Unclear(f"Brett nicht eindeutig ({ncols} Spalten, {nrows} Zeilen sichtbar). Neues Spiel starten.")
+    x1 = lefts[0] - (pitch - size) / 2
+    y1 = tops[0] - (pitch - size) / 2
+    return (int(x1), int(y1), int(x1 + 4 * pitch), int(y1 + 4 * pitch))
+
+def find_board(fr):
+    """Erst die klassische Hintergrundfarbe, sonst über die leeren Felder (andere Designs)."""
+    _, w, h, _ = fr
+    for n, col, (a, b, c, d) in components(fr, tol=10, min_pts=300):
+        if dist(col, BOARD_BG) < 12 and (c - a) >= 0.6 * w and 0.85 <= (c - a) / (d - b) <= 1.15:
+            return (a, b, c, d)
+    return find_board_by_cells(fr)
 
 def load():
     cal = json.load(open(CALIB)) if os.path.exists(CALIB) else {}
@@ -110,11 +161,13 @@ def fmt(b):
 
 def cmd_calibrate(args):
     fr = grab()
+    cal = json.load(open(CALIB)) if os.path.exists(CALIB) else {}
     if "--board" in args:
         i = args.index("--board"); rect = tuple(int(x) for x in args[i + 1:i + 5])
+    elif "--values" in args and cal.get("board"):
+        rect = tuple(cal["board"])      # bereits gefundenes Brett wiederverwenden (später fehlen freie Felder zum Suchen)
     else:
         rect = find_board(fr)
-    cal = json.load(open(CALIB)) if os.path.exists(CALIB) else {}
     cal["board"] = list(rect)
     if "--values" in args:
         known = S.parse(args[args.index("--values") + 1])
@@ -132,30 +185,29 @@ def cmd_calibrate(args):
     return 0
 
 def cmd_probe(_):
-    """Gibt die größten einfarbigen Flächen des Bildschirms aus (grobes Raster, Flutfüllung)."""
+    """Gibt die größten einfarbigen Flächen des Bildschirms aus."""
     fr = grab()
     _, w, h, _ = fr
-    step = 6
-    gw, gh = w // step, h // step
-    grid = [[px(fr, gx * step + 3, gy * step + 3) for gx in range(gw)] for gy in range(gh)]
-    seen, comps = [[False] * gw for _ in range(gh)], []
-    for gy in range(gh):
-        for gx in range(gw):
-            if seen[gy][gx]:
-                continue
-            seed, stack, xs, ys = grid[gy][gx], [(gx, gy)], [], []
-            seen[gy][gx] = True
-            while stack:
-                cx, cy = stack.pop(); xs.append(cx); ys.append(cy)
-                for nx, ny in ((cx+1, cy), (cx-1, cy), (cx, cy+1), (cx, cy-1)):
-                    if 0 <= nx < gw and 0 <= ny < gh and not seen[ny][nx] and dist(grid[ny][nx], seed) < 6:
-                        seen[ny][nx] = True; stack.append((nx, ny))
-            if len(xs) >= 150:
-                comps.append((len(xs), seed, (min(xs) * step, min(ys) * step, (max(xs) + 1) * step, (max(ys) + 1) * step)))
-    comps.sort(key=lambda c: -c[0])
     print(f"Bild {w}x{h}; große einfarbige Flächen (Farbe, Rahmen, Größe, Anzahl Rasterpunkte):")
-    for n, col, (a, b, c, d) in comps[:30]:
+    for n, col, (a, b, c, d) in components(fr)[:30]:
         print(f"  {col} rahmen=({a},{b},{c},{d}) größe={c-a}x{d-b} punkte={n}")
+    return 0
+
+def cmd_cells(args):
+    """Farbe jedes der 16 Felder mit nächstem Palettenwert (zur Diagnose)."""
+    rect, pal = load()
+    fr = grab()
+    if "--board" in args:
+        i = args.index("--board"); rect = tuple(int(x) for x in args[i + 1:i + 5])
+    rect = rect or find_board(fr)
+    print(f"Brett: {rect}")
+    for r in range(4):
+        parts = []
+        for c in range(4):
+            col = cell_color(fr, rect, r, c)
+            v, d = min(((val, dist(col, rgb)) for val, rgb in pal.items()), key=lambda t: t[1])
+            parts.append(f"{col}→{v}({d:.0f})")
+        print("  " + "  ".join(parts))
     return 0
 
 def cmd_read(_):
@@ -216,12 +268,15 @@ def cmd_play(args):
     return 0
 
 def main(argv):
-    if len(argv) < 2 or argv[1] not in ("calibrate", "read", "play", "probe"):
+    if len(argv) < 2 or argv[1] not in ("calibrate", "read", "play", "probe", "cells"):
         print(__doc__); return 2
     try:
-        return {"calibrate": cmd_calibrate, "read": cmd_read, "play": cmd_play, "probe": cmd_probe}[argv[1]](argv[2:])
+        return {"calibrate": cmd_calibrate, "read": cmd_read, "play": cmd_play, "probe": cmd_probe, "cells": cmd_cells}[argv[1]](argv[2:])
     except Unclear as e:
         print(f"UNKLAR: {e}", file=sys.stderr); return 3
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv))
+    try:
+        sys.exit(main(sys.argv))
+    except BrokenPipeError:
+        sys.exit(0)

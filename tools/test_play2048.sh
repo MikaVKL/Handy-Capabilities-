@@ -46,4 +46,21 @@ rm -f "$HANDY_DIR/state/2048-calib.json"
 check "Kein 2048 sichtbar (ohne Kalibrierung)" 'FRAME_FILE=/tmp/claude-0/white.raw $P read 2>&1 | grep -q "nicht gefunden"'
 check "probe listet Flächen"          '$P probe | grep -q "rahmen=" && $P probe | head -n 3 | grep -q "(187, 173, 160)"'
 check "ADB nicht verbunden: lesbare Meldung" 'out=$(FAKE_FAIL=1 $P read 2>&1); echo "$out" | grep -q "ADB liefert kein Bild" && ! echo "$out" | grep -q Traceback'
+# --- Dunkles Design mit Lichtschein (ähnlich der echten App) ---
+export FAKE_THEME=dark; rm -f "$HANDY_DIR/state/2048-calib.json" "$HANDY_DIR/state/steps"
+python3 - <<'PY'
+import json, os
+json.dump({"board":[0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,2],"score":0,"over":False}, open(os.environ["FAKE_STATE"],"w"))
+PY
+check "dunkel: Brett automatisch gefunden" '$P calibrate | grep -q "^Brett: (5"'
+python3 - <<'PY'
+import json, os
+json.dump({"board":[16,2,64,2,2,128,32,8,0,0,2,4,2,0,0,2],"score":0,"over":False}, open(os.environ["FAKE_STATE"],"w"))
+PY
+$P calibrate --values "$(truth)" >/dev/null
+check "dunkel: Lesen nach Nachlernen"  '[ "$($P read)" = "$(truth)" ]'
+init 4; rm -f "$HANDY_DIR/state/steps"
+out=$($P play 50 --settle 0); sc=$(python3 -c "import json,os;print(json.load(open(os.environ['FAKE_STATE']))['score'])")
+check "dunkel: 50 Züge, Punktestand stimmt" 'echo "$out" | grep -q "Züge: 50, geschätzter Punktestand: $sc,"'
+unset FAKE_THEME
 rm -rf "$W"; [ $fail -eq 0 ] && echo "Alle Tests bestanden" || { echo "Tests fehlgeschlagen"; exit 1; }

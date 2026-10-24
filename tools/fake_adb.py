@@ -8,6 +8,9 @@ STATE = os.environ.get("FAKE_STATE", "/tmp/claude-0/fp/state.json")
 W, H = 1080, 2340
 BOARD = (50, 600, 1030, 1580)
 HEADER16 = os.environ.get("FAKE_HDR16") == "1"
+DARK = os.environ.get("FAKE_THEME") == "dark"
+DARK_PAL = {0: (188, 176, 162), 2: (238, 230, 220), 4: (237, 226, 206), 8: (233, 178, 130), 16: (234, 153, 115),
+            32: (232, 135, 115), 64: (230, 105, 80), 128: (235, 215, 150), 256: (235, 210, 130), 512: (235, 205, 110)}
 
 def load():
     return json.load(open(STATE))
@@ -21,18 +24,34 @@ def fill(data, x1, y1, x2, y2, rgb):
         o = (y * W + x1) * 4
         data[o:o + len(row)] = row
 
+def glow(rgb, x, y):
+    if not DARK:
+        return rgb
+    cx, cy = (BOARD[0] + BOARD[2]) / 2, (BOARD[1] + BOARD[3]) / 2
+    d2 = ((x - cx) ** 2 + (y - cy) ** 2) / (500.0 ** 2)
+    k = int(10 * max(0.0, 1 - d2))
+    return tuple(min(255, v + k) for v in rgb)
+
 def render(st):
-    data = bytearray(bytes((250, 248, 239, 255)) * (W * H))
-    fill(data, 700, 200, 1000, 300, P.BOARD_BG)           # Punktefeld, gleiche Farbe wie das Brett, aber kleiner
+    bg = (34, 30, 24) if DARK else (250, 248, 239)
+    data = bytearray(bytes((bg[0], bg[1], bg[2], 255)) * (W * H))
+    boardbg = (160, 150, 135) if DARK else P.BOARD_BG
+    fill(data, 700, 200, 1000, 300, (58, 55, 48) if DARK else P.BOARD_BG)   # Punktefeld
     x1, y1, x2, y2 = BOARD
-    fill(data, x1, y1, x2, y2, P.BOARD_BG)
+    fill(data, x1, y1, x2, y2, boardbg)
+    if DARK:   # Lichtschein auf dem Brett: zeilenweise leicht aufgehellt
+        for y in range(y1, y2):
+            for x in range(x1, x2, 8):
+                c = glow(boardbg, x, y); o = (y * W + x) * 4
+                data[o:o + 32] = bytes((c[0], c[1], c[2], 255)) * 8
     cw = (x2 - x1) / 4
     gap = 28
     for i, v in enumerate(st["board"]):
         r, c = divmod(i, 4)
         tx1, ty1 = int(x1 + c * cw + gap / 2), int(y1 + r * cw + gap / 2)
         tx2, ty2 = int(x1 + (c + 1) * cw - gap / 2), int(y1 + (r + 1) * cw - gap / 2)
-        fill(data, tx1, ty1, tx2, ty2, P.PALETTE.get(v, (60, 58, 50)))
+        base = (DARK_PAL if DARK else P.PALETTE).get(v, (60, 58, 50))
+        fill(data, tx1, ty1, tx2, ty2, glow(base, (tx1 + tx2) // 2, (ty1 + ty2) // 2))
         if v:   # "Ziffer" in der Mitte, damit die Abtastung abseits der Mitte getestet wird
             mx, my = (tx1 + tx2) // 2, (ty1 + ty2) // 2
             fill(data, mx - 40, my - 30, mx + 40, my + 30, (119, 110, 101))
