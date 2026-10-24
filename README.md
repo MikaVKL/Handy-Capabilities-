@@ -31,6 +31,14 @@ Für Gesten auf dem Homescreen den Launcher eintragen (Paketname per
 `adb shell dumpsys window | grep mCurrentFocus` bei geöffnetem Homescreen ablesen).
 Termux selbst gehört nicht auf die Liste.
 
+## Bildschirm
+Vor jeder Aktion weckt `lib.sh` den Bildschirm (`KEYCODE_WAKEUP`), damit keine schwarzen
+Screenshots entstehen. *Handy-Start* setzt außerdem den Timeout auf 10 Minuten
+(`scripts/screen-timeout.sh on`) und stellt ihn nach dem Lauf oder bei *Handy-Stop* zurück.
+Bei interaktiver Nutzung (`claude` im Terminal) einmal `~/handy/scripts/screen-timeout.sh on`
+und danach `... off` ausführen.
+Hat das Gerät eine PIN, kann es sich nach Bildschirm-Aus sperren; dann stoppt die App-Sperre alle Eingaben.
+
 ## Grenzen
 - Nur für einfache Apps ohne sensible Daten. Screenshots gehen an Claude.
 - Apps mit Screenshot-Sperre zeigen ein schwarzes Bild.
