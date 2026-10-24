@@ -5,6 +5,7 @@
       Findet das Brett (ohne --board automatisch über die Hintergrundfarbe), speichert es und zeigt das gelesene Brett.
       Mit --values (das Brett, wie es auf dem Bildschirm steht) werden die Farben dieser Zahlen nachgelernt.
   play2048.py read            Brett einmal lesen und ausgeben
+  play2048.py probe           Diagnose: große einfarbige Flächen mit Farbe und Position (für die Anpassung an die App)
   play2048.py play N [--settle 0.35]   N Züge spielen (nach jedem Zug wird das Brett neu gelesen und neu geplant)
 Voraussetzung: Handy zeigt 2048 im Vordergrund. Wischen läuft über swipe.sh (App-Sperre, STOP-Datei, Schrittlimit gelten).
 """
@@ -130,6 +131,33 @@ def cmd_calibrate(args):
         print("Noch unklar:", e)
     return 0
 
+def cmd_probe(_):
+    """Gibt die größten einfarbigen Flächen des Bildschirms aus (grobes Raster, Flutfüllung)."""
+    fr = grab()
+    _, w, h, _ = fr
+    step = 6
+    gw, gh = w // step, h // step
+    grid = [[px(fr, gx * step + 3, gy * step + 3) for gx in range(gw)] for gy in range(gh)]
+    seen, comps = [[False] * gw for _ in range(gh)], []
+    for gy in range(gh):
+        for gx in range(gw):
+            if seen[gy][gx]:
+                continue
+            seed, stack, xs, ys = grid[gy][gx], [(gx, gy)], [], []
+            seen[gy][gx] = True
+            while stack:
+                cx, cy = stack.pop(); xs.append(cx); ys.append(cy)
+                for nx, ny in ((cx+1, cy), (cx-1, cy), (cx, cy+1), (cx, cy-1)):
+                    if 0 <= nx < gw and 0 <= ny < gh and not seen[ny][nx] and dist(grid[ny][nx], seed) < 6:
+                        seen[ny][nx] = True; stack.append((nx, ny))
+            if len(xs) >= 150:
+                comps.append((len(xs), seed, (min(xs) * step, min(ys) * step, (max(xs) + 1) * step, (max(ys) + 1) * step)))
+    comps.sort(key=lambda c: -c[0])
+    print(f"Bild {w}x{h}; große einfarbige Flächen (Farbe, Rahmen, Größe, Anzahl Rasterpunkte):")
+    for n, col, (a, b, c, d) in comps[:30]:
+        print(f"  {col} rahmen=({a},{b},{c},{d}) größe={c-a}x{d-b} punkte={n}")
+    return 0
+
 def cmd_read(_):
     rect, pal = load()
     fr = grab()
@@ -188,10 +216,10 @@ def cmd_play(args):
     return 0
 
 def main(argv):
-    if len(argv) < 2 or argv[1] not in ("calibrate", "read", "play"):
+    if len(argv) < 2 or argv[1] not in ("calibrate", "read", "play", "probe"):
         print(__doc__); return 2
     try:
-        return {"calibrate": cmd_calibrate, "read": cmd_read, "play": cmd_play}[argv[1]](argv[2:])
+        return {"calibrate": cmd_calibrate, "read": cmd_read, "play": cmd_play, "probe": cmd_probe}[argv[1]](argv[2:])
     except Unclear as e:
         print(f"UNKLAR: {e}", file=sys.stderr); return 3
 
