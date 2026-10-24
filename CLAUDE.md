@@ -15,6 +15,8 @@ Nur diese Skripte, nichts anderes:
 
 Tippen, Wischen, Text und Tasten (außer home/back) funktionieren technisch nur, wenn die App im Vordergrund in `allowed-apps.txt` steht. Meldet ein Skript "STOPP: App nicht freigegeben", nicht umgehen, sondern dem Nutzer melden.
 
+Hinweis für den Nutzer: `allow-app.sh` und `probe.sh` sind für den Nutzer gedacht; du gibst selbst keine Apps frei. Erkundest du eine App, ändere nichts und lege `~/handy/apps/NAME.md` an (siehe `docs/scope.md`).
+
 ## Vorgehen
 1. Zuerst `screen.sh`, Bildschirm ansehen, die nächsten Schritte vorausplanen.
 2. Vorhersehbare Abläufe (feste Tastenfelder, bekannte Menüs) als **eine** `batch.sh`-Kette ausführen und mit `"shot"` enden. Wo sich die Oberfläche nach einem Schritt ändern kann (Dialog, Laden, neue Seite), die Kette dort beenden und neu ansehen.

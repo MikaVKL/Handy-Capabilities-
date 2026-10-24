@@ -41,6 +41,21 @@ def main(argv):
             flags = ("klickbar " if e["click"] else "") + e["cls"]
             print(f'[{i}] "{label}" ({flags}) @ {e["cx"]},{e["cy"]}')
         return 0
+    if cmd == "summary":
+        web = sum(1 for e in els if e["cls"] == "WebView")
+        click = sum(1 for e in els if e["click"])
+        texts = sum(1 for e in els if e["text"] or e["desc"])
+        if not els:
+            verdict = "LEER"
+        elif web and len(els) <= 3:
+            verdict = "WEBVIEW"
+        elif texts >= 8:
+            verdict = "REICH"
+        else:
+            verdict = "DUENN"
+        labels = [e["text"] or e["desc"] for e in els if e["text"] or e["desc"]][:8]
+        print(f'{verdict};{len(els)};{click};{texts};{web};' + " | ".join(l[:24] for l in labels))
+        return 0
     if cmd == "find" and len(argv) > 2:
         needle, n = argv[2].lower(), int(argv[3]) if len(argv) > 3 and argv[3].isdigit() else 1
         exact = [e for e in els if needle in (e["text"].lower(), e["desc"].lower())]
