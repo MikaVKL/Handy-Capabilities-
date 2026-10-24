@@ -28,12 +28,18 @@ foreground_pkg() {
 }
 
 # Harte Sperre: Eingaben nur, wenn die App im Vordergrund in allowed-apps.txt steht.
+# Beim App-Wechsel hinkt die Fokusanzeige kurz hinterher; deshalb bis zu 3 Versuche im Abstand von 0,7 s.
 app_guard() {
-  local pkg; pkg=$(foreground_pkg)
+  local pkg="" i
+  for i in 1 2 3; do
+    pkg=$(foreground_pkg)
+    if [ -n "$pkg" ] && grep -qxF "$pkg" "$HANDY_DIR/allowed-apps.txt" 2>/dev/null; then
+      return 0
+    fi
+    [ "$i" -lt 3 ] && sleep 0.7
+  done
   if [ -z "$pkg" ]; then
     echo "STOPP: Vordergrund-App nicht erkennbar" >&2; log "Sperre: Vordergrund unbekannt"; exit 3
   fi
-  if ! grep -qxF "$pkg" "$HANDY_DIR/allowed-apps.txt" 2>/dev/null; then
-    echo "STOPP: App nicht freigegeben: $pkg" >&2; log "Sperre: $pkg nicht freigegeben"; exit 3
-  fi
+  echo "STOPP: App nicht freigegeben: $pkg" >&2; log "Sperre: $pkg nicht freigegeben"; exit 3
 }
