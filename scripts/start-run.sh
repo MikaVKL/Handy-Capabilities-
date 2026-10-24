@@ -4,8 +4,9 @@
 DIR="$(dirname "$0")"
 HANDY_DIR="${HANDY_DIR:-$HOME/handy}"; STATE="$HANDY_DIR/state"; mkdir -p "$STATE"
 if [ "$(adb get-state 2>/dev/null)" != "device" ]; then
-  echo "ADB nicht verbunden. Wireless debugging einschalten, aktuellen Port ablesen und:" >&2
-  echo "  adb connect IP:PORT" >&2
+  echo "ADB nicht verbunden. Wireless debugging einschalten (der Port ändert sich jedes Mal) und:" >&2
+  echo "  ~/handy/scripts/connect.sh          (sucht Adresse und Port selbst)" >&2
+  echo "  ~/handy/scripts/connect.sh PORT     (Port aus Wireless debugging; IP von der letzten Verbindung)" >&2
   exit 1
 fi
 rm -f "$STATE/STOP" "$STATE/steps"

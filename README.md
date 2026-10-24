@@ -31,6 +31,10 @@ Für Gesten auf dem Homescreen den Launcher eintragen (Paketname per
 `adb shell dumpsys window | grep mCurrentFocus` bei geöffnetem Homescreen ablesen).
 Termux selbst gehört nicht auf die Liste.
 
+## Verbindung (ADB)
+Der Port von Wireless debugging ändert sich bei jedem Einschalten. `~/handy/scripts/connect.sh` sucht Adresse und Port
+per mDNS; klappt das nicht, `connect.sh PORT` (IP von der letzten Verbindung) oder einmalig `connect.sh PORT IP`.
+
 ## Lauf vorbereiten und aufräumen
 `~/handy/scripts/start-run.sh` prüft die ADB-Verbindung, löscht STOP-Datei und Schrittzähler, hebt den
 Bildschirm-Timeout an und schaltet die STOPP-Benachrichtigung ein. `~/handy/scripts/end-run.sh` stellt alles zurück.
