@@ -8,13 +8,16 @@ Nur diese Skripte, nichts anderes:
 - `screen.sh` – Screenshot, gibt Pfad aus; danach mit Read ansehen
 - `tap.sh X Y`, `swipe.sh X1 Y1 X2 Y2 [ms]`, `text.sh "Text"`, `key.sh back|home|enter|recents`
 - `open-app.sh PAKET` – nur Apps aus `allowed-apps.txt`
+- `batch.sh "tap X Y" "swipe X1 Y1 X2 Y2" "text …" "key back" "wait 1" "shot"` – bis zu 8 Aktionen in einem Aufruf (jede Aktion mit denselben Sperren; bricht beim ersten Fehler ab)
 
 Tippen, Wischen, Text und Tasten (außer home/back) funktionieren technisch nur, wenn die App im Vordergrund in `allowed-apps.txt` steht. Meldet ein Skript "STOPP: App nicht freigegeben", nicht umgehen, sondern dem Nutzer melden.
 
 ## Vorgehen
-1. Zuerst `screen.sh`, Bildschirm ansehen, dann genau eine Aktion, dann wieder prüfen.
-2. Koordinaten aus dem Screenshot ableiten; bei Unsicherheit nachfragen statt raten.
-3. Bei Erfolg oder Problem kurz berichten und aufhören. Keine Endlosschleifen.
+1. Zuerst `screen.sh`, Bildschirm ansehen, die nächsten Schritte vorausplanen.
+2. Vorhersehbare Abläufe (feste Tastenfelder, bekannte Menüs) als **eine** `batch.sh`-Kette ausführen und mit `"shot"` enden. Wo sich die Oberfläche nach einem Schritt ändern kann (Dialog, Laden, neue Seite), die Kette dort beenden und neu ansehen.
+3. Koordinaten aus dem Screenshot ableiten; bei Unsicherheit nachfragen statt raten.
+4. Keine Zwischenkommentare. Am Ende ein bis zwei Sätze mit dem Ergebnis. Vor Absenden/Kaufen/Löschen/Teilen trotzdem stoppen und fragen.
+5. Bei Erfolg oder Problem kurz berichten und aufhören. Keine Endlosschleifen.
 
 ## Harte Regeln
 - Niemals in Banking-, Zahlungs-, Passwort-, Nachrichten- oder Kontakte-Apps handeln.
