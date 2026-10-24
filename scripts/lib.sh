@@ -11,6 +11,11 @@ step_guard() {
   if [ -f "$STATE/STOP" ]; then
     echo "STOPP: vom Nutzer abgebrochen" >&2; log "abgebrochen (STOP)"; exit 1
   fi
+  # Neuer Lauf: Zähler zurücksetzen, wenn der letzte Schritt länger als RUN_IDLE_SECS her ist
+  if [ -f "$STATE/steps" ]; then
+    local age=$(( $(date +%s) - $(stat -c %Y "$STATE/steps" 2>/dev/null || date +%s) ))
+    [ "$age" -gt "${RUN_IDLE_SECS:-120}" ] && rm -f "$STATE/steps"
+  fi
   local n; n=$(cat "$STATE/steps" 2>/dev/null || echo 0); n=$((n + 1))
   if [ "$n" -gt "$MAX_STEPS" ]; then
     echo "STOPP: Schrittlimit ($MAX_STEPS) erreicht" >&2; log "Schrittlimit"; exit 1
