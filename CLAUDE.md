@@ -9,6 +9,7 @@ Nur diese Skripte, nichts anderes:
 - `tap.sh X Y`, `swipe.sh X1 Y1 X2 Y2 [ms]`, `text.sh "Text"`, `key.sh back|home|enter|recents`
 - `open-app.sh PAKET` – nur Apps aus `allowed-apps.txt`
 - `batch.sh "tap X Y" "swipe X1 Y1 X2 Y2" "text …" "key back" "wait 1" "shot"` – bis zu 8 Aktionen in einem Aufruf (jede Aktion mit denselben Sperren; bricht beim ersten Fehler ab)
+  - Zusätzlich `"swipe-check X1 Y1 X2 Y2 [ms]"` und `"tap-check X Y"`: führen die Geste aus und prüfen lokal, ob sich das Bild verändert hat. Bei "KEIN EFFEKT" bricht die Kette ab; dann neu ansehen und anders planen, nicht wiederholen.
 
 Tippen, Wischen, Text und Tasten (außer home/back) funktionieren technisch nur, wenn die App im Vordergrund in `allowed-apps.txt` steht. Meldet ein Skript "STOPP: App nicht freigegeben", nicht umgehen, sondern dem Nutzer melden.
 
