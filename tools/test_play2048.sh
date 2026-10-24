@@ -19,6 +19,7 @@ check "Lesen = wahres Brett"            '[ "$($P read)" = "$(truth)" ]'
 check "16-Byte-Kopf des Rohbilds"       '[ "$(FAKE_HDR16=1 $P read)" = "$(truth)" ]'
 out=$($P play 40 --settle 0); sc=$(python3 -c "import json,os;print(json.load(open(os.environ['FAKE_STATE']))['score'])")
 check "40 Züge, Punktestand stimmt"     'echo "$out" | grep -q "Züge: 40, geschätzter Punktestand: $sc,"'
+check "Folge der Züge wird ausgegeben"  'echo "$out" | grep -qE "^Folge: ([LRUD] ?){40}"'
 check "Protokoll zählt die Züge"        '[ "$(grep -c swipe "$HANDY_DIR/state/log.txt")" -eq 40 ]'
 python3 - <<'PY'
 import json, os

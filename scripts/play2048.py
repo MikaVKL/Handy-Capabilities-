@@ -334,6 +334,7 @@ def cmd_play(args):
     score = done = stuck = 0
     halted = False
     last_cols = last_pred = None
+    folge = []
     t0 = time.time()
     board = read_board(grab(), rect, pal, ref)
     while done < n:
@@ -349,6 +350,7 @@ def cmd_play(args):
             if r.returncode != 0:
                 print(f"ABBRUCH: swipe.sh endete mit Code {r.returncode}"); return r.returncode
             done += 1
+            folge.append(dname[0].upper())
             _, g, _ = S.move(board, dname)
             time.sleep(settle)
             pred = S.move(board, dname)[0]
@@ -393,6 +395,7 @@ def cmd_play(args):
     secs = time.time() - t0
     print(f"Züge: {done}, geschätzter Punktestand: {score}, größte Kachel: {max(board)}, Dauer: {secs:.0f}s ({secs/max(done,1):.1f}s pro Zug)")
     print("Brett:", fmt(board))
+    print("Folge:", " ".join(folge), "  (L links, R rechts, U oben, D unten)")
     return 0
 
 def main(argv):
