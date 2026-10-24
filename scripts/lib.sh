@@ -18,3 +18,20 @@ step_guard() {
   echo "$n" > "$STATE/steps"
   log "schritt $n: $*"
 }
+
+# Paketname der App im Vordergrund (leer, wenn nicht ermittelbar).
+foreground_pkg() {
+  adb shell dumpsys window 2>/dev/null | tr -d '\r' \
+    | sed -n 's/.*mCurrentFocus=Window{[^ ]* [^ ]* \([A-Za-z0-9_.]*\)\/.*/\1/p' | head -n 1
+}
+
+# Harte Sperre: Eingaben nur, wenn die App im Vordergrund in allowed-apps.txt steht.
+app_guard() {
+  local pkg; pkg=$(foreground_pkg)
+  if [ -z "$pkg" ]; then
+    echo "STOPP: Vordergrund-App nicht erkennbar" >&2; log "Sperre: Vordergrund unbekannt"; exit 3
+  fi
+  if ! grep -qxF "$pkg" "$HANDY_DIR/allowed-apps.txt" 2>/dev/null; then
+    echo "STOPP: App nicht freigegeben: $pkg" >&2; log "Sperre: $pkg nicht freigegeben"; exit 3
+  fi
+}

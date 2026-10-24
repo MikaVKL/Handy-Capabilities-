@@ -9,6 +9,8 @@ Nur diese Skripte, nichts anderes:
 - `tap.sh X Y`, `swipe.sh X1 Y1 X2 Y2 [ms]`, `text.sh "Text"`, `key.sh back|home|enter|recents`
 - `open-app.sh PAKET` – nur Apps aus `allowed-apps.txt`
 
+Tippen, Wischen, Text und Tasten (außer home/back) funktionieren technisch nur, wenn die App im Vordergrund in `allowed-apps.txt` steht. Meldet ein Skript "STOPP: App nicht freigegeben", nicht umgehen, sondern dem Nutzer melden.
+
 ## Vorgehen
 1. Zuerst `screen.sh`, Bildschirm ansehen, dann genau eine Aktion, dann wieder prüfen.
 2. Koordinaten aus dem Screenshot ableiten; bei Unsicherheit nachfragen statt raten.

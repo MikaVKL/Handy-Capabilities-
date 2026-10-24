@@ -24,6 +24,13 @@ Wireless-Debugging müssen auf dem Gerät ausprobiert werden.
 - *Handy-Stop* bricht sofort ab. Außerdem endet jeder Lauf nach 25 Schritten (`MAX_STEPS`).
 - Protokoll: `~/handy/state/log.txt`, Ausgabe: `~/handy/state/claude.out`.
 
+## App-Sperre
+`tap.sh`, `swipe.sh`, `text.sh` und `key.sh` (außer `home`/`back`) prüfen vor jeder Eingabe,
+welche App im Vordergrund ist, und brechen ab, wenn sie nicht in `~/handy/allowed-apps.txt` steht.
+Für Gesten auf dem Homescreen den Launcher eintragen (Paketname per
+`adb shell dumpsys window | grep mCurrentFocus` bei geöffnetem Homescreen ablesen).
+Termux selbst gehört nicht auf die Liste.
+
 ## Grenzen
 - Nur für einfache Apps ohne sensible Daten. Screenshots gehen an Claude.
 - Apps mit Screenshot-Sperre zeigen ein schwarzes Bild.
