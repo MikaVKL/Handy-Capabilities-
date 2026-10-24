@@ -31,6 +31,11 @@ Für Gesten auf dem Homescreen den Launcher eintragen (Paketname per
 `adb shell dumpsys window | grep mCurrentFocus` bei geöffnetem Homescreen ablesen).
 Termux selbst gehört nicht auf die Liste.
 
+## Lauf vorbereiten und aufräumen
+`~/handy/scripts/start-run.sh` prüft die ADB-Verbindung, löscht STOP-Datei und Schrittzähler, hebt den
+Bildschirm-Timeout an und schaltet die STOPP-Benachrichtigung ein. `~/handy/scripts/end-run.sh` stellt alles zurück.
+Nach einem Abbruch mit dem STOPP-Knopf bleibt die STOP-Datei liegen, bis `start-run.sh` (oder *Handy-Start*) sie löscht.
+
 ## Stopp-Benachrichtigung
 `~/handy/scripts/panel.sh on` zeigt eine Dauer-Benachrichtigung mit **STOPP**-Knopf (Termux:API nötig).
 *Handy-Start* schaltet sie automatisch ein, *Handy-Stop* und das Ende des Laufs aus. Bei `claude` im Terminal
