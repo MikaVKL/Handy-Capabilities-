@@ -43,7 +43,8 @@ def main(argv):
         return 0
     if cmd == "find" and len(argv) > 2:
         needle, n = argv[2].lower(), int(argv[3]) if len(argv) > 3 and argv[3].isdigit() else 1
-        hits = [e for e in els if needle in e["text"].lower() or needle in e["desc"].lower()]
+        exact = [e for e in els if needle in (e["text"].lower(), e["desc"].lower())]
+        hits = exact or [e for e in els if needle in e["text"].lower() or needle in e["desc"].lower()]
         if len(hits) < n:
             print(f'NICHT GEFUNDEN: "{argv[2]}" ({len(hits)} Treffer)', file=sys.stderr)
             return 4

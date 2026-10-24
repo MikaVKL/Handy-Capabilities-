@@ -2,6 +2,7 @@
 # Mehrere Aktionen in einem Aufruf. Jede Aktion läuft über das jeweilige Skript,
 # also mit Schrittlimit, Stopp-Datei und App-Sperre; beim ersten Fehler wird abgebrochen.
 # Nutzung: batch.sh "tap X Y" "swipe X1 Y1 X2 Y2" "text Hallo" "key back" "wait 1" "shot"
+# Zusatzaktion "tap-text TEXT [N]": tippt das Element mit diesem Text (über den Textbaum, siehe ui.sh).
 # Zusatzaktionen mit Wirkungsprüfung: "swipe-check X1 Y1 X2 Y2 [ms]" und "tap-check X Y".
 # Sie führen die Geste aus und vergleichen das Bild vorher/nachher (lokal, ohne Modell).
 # Hat sich nichts verändert, bricht die Kette mit "KEIN EFFEKT" ab (Exit-Code 4).
@@ -33,6 +34,7 @@ for a in "$@"; do
       fi
       prev="$now"; ok=$((ok + 1)) ;;
     tap|swipe|text|key) "$DIR/$cmd.sh" "$@" || exit $?; prev="" ;;
+    tap-text) "$DIR/ui.sh" tap "$@" || exit $?; prev="" ;;
     wait)
       case "$1" in ''|*[!0-9]*) echo "wait braucht ganze Sekunden" >&2; exit 2;; esac
       [ "$1" -le 10 ] || { echo "wait höchstens 10 Sekunden" >&2; exit 2; }

@@ -22,6 +22,15 @@ welche Stufe sich lohnt, statt alles zu bauen.
 Jeder Lauf: `bench.sh LABEL ERGEBNIS "Notiz"`, Auswertung mit `bench.sh --show`.
 Kennzahlen: Dauer, Aufrufe, Sekunden pro Aufruf, Qualität (bei 2048 Punkte; bei anderen Apps: Aufgabe erfüllt ja/nein), Aufwand zum Anlernen (Minuten).
 
+## Wahrnehmung (ui.sh) bei bisher getesteten Apps
+| App | Textbaum | Folge |
+|---|---|---|
+| Taschenrechner | vollständig (Tasten, Ergebnisvorschau) | Stufe 3 möglich, keine Bilder nötig |
+| Clock | vollständig (Alarme, Schalter, Reiter) | Stufe 3 möglich |
+| 2048 | nur ein WebView, Inhalt nicht sichtbar | Screenshots nötig |
+| Termux | nur die Zusatztasten, Terminaltext fehlt | Screenshots nötig |
+Regel: Zuerst `ui.sh`. Liefert es Elemente, den Textbaum nutzen; meldet es `LEER` oder nur einen WebView, auf Screenshots zurückfallen.
+
 ## Bisherige Erkenntnisse (2048)
 - Haiku mit `/effort low` war pro Aufruf etwa 30 % schneller als Sonnet mit medium.
 - Nach jedem Zug ein Screenshot: etwa 10 s pro Zug. 4er-Ketten blind: etwa 6 s pro Zug, aber festgefahrene Züge ohne Prüfung.
