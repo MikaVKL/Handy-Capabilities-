@@ -31,6 +31,12 @@ Für Gesten auf dem Homescreen den Launcher eintragen (Paketname per
 `adb shell dumpsys window | grep mCurrentFocus` bei geöffnetem Homescreen ablesen).
 Termux selbst gehört nicht auf die Liste.
 
+## Stopp-Benachrichtigung
+`~/handy/scripts/panel.sh on` zeigt eine Dauer-Benachrichtigung mit **STOPP**-Knopf (Termux:API nötig).
+*Handy-Start* schaltet sie automatisch ein, *Handy-Stop* und das Ende des Laufs aus. Bei `claude` im Terminal
+vorher `panel.sh on`, nachher `panel.sh off`. Die Benachrichtigungsleiste gilt für die App-Sperre als fremde App,
+Claudes Eingaben werden währenddessen ohnehin abgelehnt.
+
 ## Bildschirm
 Vor jeder Aktion weckt `lib.sh` den Bildschirm (`KEYCODE_WAKEUP`), damit keine schwarzen
 Screenshots entstehen. *Handy-Start* setzt außerdem den Timeout auf 10 Minuten
