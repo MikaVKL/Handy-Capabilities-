@@ -89,6 +89,9 @@ def main(a):
             nb = spawn(nb); st["score"] += g
             if not any(S.move(nb, dd)[2] for dd in S.DIRS):
                 st["over"] = True
+            st["moves"] = st.get("moves", 0) + 1
+            if os.environ.get("FAKE_OVER_AFTER") and st["moves"] >= int(os.environ["FAKE_OVER_AFTER"]):
+                st["over"] = True
             st["board"] = list(nb); save(st)
         return 0
     return 0

@@ -46,6 +46,9 @@ rm -f "$HANDY_DIR/state/2048-calib.json"
 check "Kein 2048 sichtbar (ohne Kalibrierung)" 'FRAME_FILE=/tmp/claude-0/white.raw $P read 2>&1 | grep -q "nicht gefunden"'
 check "probe listet Flächen"          '$P probe | grep -q "rahmen=" && $P probe | head -n 3 | grep -q "(187, 173, 160)"'
 check "ADB nicht verbunden: lesbare Meldung" 'out=$(FAKE_FAIL=1 $P read 2>&1); echo "$out" | grep -q "ADB liefert kein Bild" && ! echo "$out" | grep -q Traceback'
+init 8; rm -f "$HANDY_DIR/state/steps"
+check "Abbruch: Zugzähler zählt nur echte Züge" 'out=$(FAKE_OVER_AFTER=3 $P play 30 --settle 0 2>&1); echo "$out" | grep -q "STOPP" && echo "$out" | grep -q "Züge: 3,"'
+check "Abbruch: nennt abweichende Felder"      'echo "$out" | grep -q "erwartet"'
 # --- Dunkles Design mit Lichtschein (ähnlich der echten App) ---
 export FAKE_THEME=dark; rm -f "$HANDY_DIR/state/2048-calib.json" "$HANDY_DIR/state/steps"
 python3 - <<'PY'
@@ -62,6 +65,7 @@ check "dunkel: Lesen nach Nachlernen"  '[ "$($P read)" = "$(truth)" ]'
 init 4; rm -f "$HANDY_DIR/state/steps"
 out=$($P play 50 --settle 0); sc=$(python3 -c "import json,os;print(json.load(open(os.environ['FAKE_STATE']))['score'])")
 check "dunkel: 50 Züge, Punktestand stimmt" 'echo "$out" | grep -q "Züge: 50, geschätzter Punktestand: $sc,"'
+init 7
 check "--values auch ohne Anführungszeichen" 'rm -f "$HANDY_DIR/state/2048-calib.json"; $P calibrate >/dev/null; $P calibrate --values 0 0 0 0/0 0 0 0/0 0 0 0/2 2 0 0 | grep -q "Brett:"'
 check "--values: verständlicher Eingabefehler" '$P calibrate --values "1 2 3" 2>&1 | grep -q "Eingabefehler"'
 # Nur das Startbrett ist bekannt, alle weiteren Farben lernt das Skript beim Spielen selbst

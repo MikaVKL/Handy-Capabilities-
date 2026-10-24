@@ -245,6 +245,16 @@ def check(cols, expected, samples, allow_spawn):
         learned.append((val, col))
     return True, tuple(out), learned
 
+def explain(cols, expected, samples):
+    """Welche Felder passen nicht zur Vorhersage (für die Fehlersuche)?"""
+    out = []
+    for i, e in enumerate(expected):
+        v, d = classify(cols[i], samples)
+        de = near(cols[i], e, samples)
+        if v != e or (de is not None and de > 14):
+            out.append(f"Z{i // 4 + 1}S{i % 4 + 1}: erwartet {e}, gemessen {cols[i]}, nächster Wert {v} (Abstand {d:.0f})")
+    return out[:6]
+
 def fmt(b):
     return "/".join(" ".join(str(v) for v in b[i * 4:(i + 1) * 4]) for i in range(4))
 
@@ -322,6 +332,8 @@ def cmd_play(args):
     cx, cy, d = (x1 + x2) // 2, (y1 + y2) // 2, int((x2 - x1) * 0.3)
     env = dict(os.environ); env.setdefault("MAX_STEPS", str(n + 10))
     score = done = stuck = 0
+    halted = False
+    last_cols = last_pred = None
     t0 = time.time()
     board = read_board(grab(), rect, pal, ref)
     while done < n:
@@ -360,13 +372,23 @@ def cmd_play(args):
                 if ok0:                    # Wisch ohne Wirkung: Brett unverändert
                     new = board; stuck += 1
                     if stuck >= 3:
-                        print("STOPP: Brett ändert sich nicht (festgefahren oder falsch gelesen)"); done = n
+                        print("STOPP: Brett ändert sich nicht (festgefahren oder falsch gelesen)"); halted = True
                     break
+                last_cols, last_pred = cols, pred
                 err = Unclear("Bild passt weder zum erwarteten noch zum alten Brett (Animation, Werbung oder verdeckt?)")
                 time.sleep(0.5)
             if new is None:
-                print(f"STOPP: {err}"); done = n; break
+                print(f"STOPP: {err}")
+                if last_cols is not None:
+                    for line in explain(last_cols, last_pred, pal):
+                        print("  ", line)
+                    print("   Erwartetes Brett:", fmt(last_pred))
+                halted = True; break
             board = new
+            if halted:
+                break
+            break
+        if halted:
             break
     secs = time.time() - t0
     print(f"Züge: {done}, geschätzter Punktestand: {score}, größte Kachel: {max(board)}, Dauer: {secs:.0f}s ({secs/max(done,1):.1f}s pro Zug)")
