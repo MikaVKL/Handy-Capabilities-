@@ -62,5 +62,10 @@ check "dunkel: Lesen nach Nachlernen"  '[ "$($P read)" = "$(truth)" ]'
 init 4; rm -f "$HANDY_DIR/state/steps"
 out=$($P play 50 --settle 0); sc=$(python3 -c "import json,os;print(json.load(open(os.environ['FAKE_STATE']))['score'])")
 check "dunkel: 50 Züge, Punktestand stimmt" 'echo "$out" | grep -q "Züge: 50, geschätzter Punktestand: $sc,"'
+# Nur das Startbrett ist bekannt, alle weiteren Farben lernt das Skript beim Spielen selbst
+init 6; rm -f "$HANDY_DIR/state/2048-calib.json" "$HANDY_DIR/state/steps"
+$P calibrate >/dev/null; $P calibrate --values "$(truth)" >/dev/null
+out=$($P play 100 --settle 0 2>&1); sc=$(python3 -c "import json,os;print(json.load(open(os.environ['FAKE_STATE']))['score'])")
+check "dunkel: lernt neue Farben selbst (100 Züge)" 'echo "$out" | grep -q "Züge: 100, geschätzter Punktestand: $sc," && echo "$out" | grep -q "Neu gelernt"'
 unset FAKE_THEME
 rm -rf "$W"; [ $fail -eq 0 ] && echo "Alle Tests bestanden" || { echo "Tests fehlgeschlagen"; exit 1; }

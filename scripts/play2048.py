@@ -132,29 +132,118 @@ def find_board(fr):
     return find_board_by_cells(fr)
 
 def load():
+    """Gibt (Brett, Proben, Referenz-Hintergrundfarbe) zurück. Eingebaute klassische Palette nur, solange nichts gelernt wurde."""
     cal = json.load(open(CALIB)) if os.path.exists(CALIB) else {}
-    pal = dict(PALETTE)
-    for k, v in cal.get("palette", {}).items():
-        pal[int(k)] = tuple(v)
-    return cal.get("board"), pal
+    learned = cal.get("palette", {})
+    if not learned:
+        return cal.get("board"), [(v, rgb) for v, rgb in PALETTE.items()], (BOARD_BG if not cal.get("gap_ref") else tuple(cal["gap_ref"]))
+    samples = []
+    for k, v in learned.items():
+        for rgb in (v if v and isinstance(v[0], list) else [v]):
+            samples.append((int(k), tuple(rgb)))
+    return cal.get("board"), samples, (tuple(cal["gap_ref"]) if cal.get("gap_ref") else None)
+
+def classify(col, samples):
+    return min(((v, dist(col, rgb)) for v, rgb in samples), key=lambda t: t[1])
+
+def save_samples(new):
+    """new: Liste von (Wert, Farbe). Wird in die Kalibrierdatei geschrieben (ohne nahezu gleiche Doppel)."""
+    cal = json.load(open(CALIB)) if os.path.exists(CALIB) else {}
+    pal = cal.setdefault("palette", {})
+    for v, rgb in new:
+        cur = pal.get(str(v), [])
+        cur = cur if cur and isinstance(cur[0], list) else ([cur] if cur else [])
+        if not any(dist(tuple(c), rgb) < 3 for c in cur):
+            cur.append(list(rgb))
+        pal[str(v)] = cur
+    os.makedirs(os.path.dirname(CALIB), exist_ok=True)
+    json.dump(cal, open(CALIB, "w"))
 
 def cell_color(fr, rect, r, c):
     x1, y1, x2, y2 = rect
     cw, ch = (x2 - x1) / 4, (y2 - y1) / 4
     return med(fr, x1 + (c + 0.5) * cw - 0.30 * cw, y1 + (r + 0.5) * ch - 0.30 * ch)
 
-def read_board(fr, rect, pal):
-    vals, bad = [], []
+def gap_at(fr, rect, r, c):
+    """Hintergrundstreifen zwischen den Feldern im Inneren des Bretts (rechts vom Feld, bei Spalte 3 links davon):
+    bekommt denselben Lichtschein wie das Feld und liegt bei jeder Art der Brettsuche an derselben Stelle."""
+    x1, y1, x2, y2 = rect
+    k = c + 1 if c < 3 else 3
+    return med(fr, x1 + k * (x2 - x1) / 4, y1 + (r + 0.5) * (y2 - y1) / 4, r=1)
+
+def gap_median(fr, rect):
+    gs = [gap_at(fr, rect, r, c) for r in range(4) for c in range(4)]
+    return tuple(sorted(g[i] for g in gs)[len(gs) // 2] for i in range(3))
+
+def norm_color(fr, rect, r, c, gap_ref):
+    """Feldfarbe abzüglich des lokalen Unterschieds im Hintergrundstreifen (entfernt Lichtschein und Verläufe)."""
+    col = cell_color(fr, rect, r, c)
+    if gap_ref is None:
+        return col
+    g = gap_at(fr, rect, r, c)
+    return tuple(max(0, min(255, col[k] - (g[k] - gap_ref[k]))) for k in range(3))
+
+def read_cells(fr, rect, pal, gap_ref=None):
+    """Gibt (Werte mit None für unbekannte Farben, gemessene Farben) zurück."""
+    vals, cols = [], []
     for r in range(4):
         for c in range(4):
-            col = cell_color(fr, rect, r, c)
-            v, d = min(((val, dist(col, rgb)) for val, rgb in pal.items()), key=lambda t: t[1])
-            if d > 14:
-                bad.append((r, c, col)); v = None
-            vals.append(v)
+            col = norm_color(fr, rect, r, c, gap_ref)
+            v, d = classify(col, pal)
+            vals.append(v if d <= 14 else None)
+            cols.append(col)
+    return vals, cols
+
+def read_board(fr, rect, pal, gap_ref=None):
+    vals, cols = read_cells(fr, rect, pal, gap_ref)
+    bad = [(i // 4, i % 4, cols[i]) for i, v in enumerate(vals) if v is None]
     if bad:
-        raise Unclear("Farben nicht erkannt (Spiel vorbei, Anzeige verdeckt oder 2048 nicht im Vordergrund?): " + ", ".join(f"Z{r+1}S{c+1}={col}" for r, c, col in bad[:4]))
+        raise Unclear("Farben nicht erkannt (Spiel vorbei, Anzeige verdeckt oder 2048 nicht im Vordergrund?): "
+                      + ", ".join(f"Z{r+1}S{c+1}={col}" for r, c, col in bad[:4]))
     return tuple(vals)
+
+def near(col, v, samples):
+    ds = [dist(col, rgb) for val, rgb in samples if val == v]
+    return min(ds) if ds else None
+
+def check(cols, expected, samples, allow_spawn):
+    """Passt das Bild zum erwarteten Brett? Gibt (ok, Brett mit neuem Stein, neue Proben) zurück.
+    Nur ein einziger neuer Stein (2 oder 4) in einem leeren Feld ist erlaubt, und nur wenn allow_spawn gesetzt ist."""
+    spawn, learned, out = None, [], list(expected)
+    for i, e in enumerate(expected):
+        col = cols[i]
+        d0 = near(col, 0, samples)
+        is_empty = d0 is not None and d0 <= 14
+        if e == 0:
+            if is_empty:
+                continue
+            if not allow_spawn or spawn is not None:
+                return False, None, []
+            spawn = i
+            continue
+        if is_empty:
+            return False, None, []
+        d = near(col, e, samples)
+        if d is None:
+            learned.append((e, col))          # Wert noch nie gesehen: Farbe aus der Vorhersage lernen
+            continue
+        vb, db = classify(col, samples)
+        if d > 22 or (vb != e and db + 6 < d):
+            return False, None, []
+    if spawn is not None:
+        col = cols[spawn]
+        d2, d4 = near(col, 2, samples), near(col, 4, samples)
+        if d2 is not None and d4 is not None:
+            val = 2 if d2 <= d4 else 4
+        elif d2 is not None:
+            val = 2 if d2 <= 7 else 4
+        elif d4 is not None:
+            val = 4 if d4 <= 7 else 2
+        else:
+            return False, None, []
+        out[spawn] = val
+        learned.append((val, col))
+    return True, tuple(out), learned
 
 def fmt(b):
     return "/".join(" ".join(str(v) for v in b[i * 4:(i + 1) * 4]) for i in range(4))
@@ -162,24 +251,26 @@ def fmt(b):
 def cmd_calibrate(args):
     fr = grab()
     cal = json.load(open(CALIB)) if os.path.exists(CALIB) else {}
+    reuse = "--values" in args and cal.get("board") and "--board" not in args
     if "--board" in args:
         i = args.index("--board"); rect = tuple(int(x) for x in args[i + 1:i + 5])
-    elif "--values" in args and cal.get("board"):
+    elif reuse:
         rect = tuple(cal["board"])      # bereits gefundenes Brett wiederverwenden (später fehlen freie Felder zum Suchen)
     else:
         rect = find_board(fr)
     cal["board"] = list(rect)
-    if "--values" in args:
-        known = S.parse(args[args.index("--values") + 1])
-        pal = cal.setdefault("palette", {})
-        for i, v in enumerate(known):
-            pal[str(v)] = list(cell_color(fr, rect, i // 4, i % 4))
+    if not reuse or not cal.get("gap_ref"):
+        cal["gap_ref"] = list(gap_median(fr, rect))
     os.makedirs(os.path.dirname(CALIB), exist_ok=True)
     json.dump(cal, open(CALIB, "w"))
+    if "--values" in args:
+        known = S.parse(args[args.index("--values") + 1])
+        ref = tuple(cal["gap_ref"])
+        save_samples([(v, norm_color(fr, rect, i // 4, i % 4, ref)) for i, v in enumerate(known)])
     print(f"Brett: {rect}")
-    _, pal = load()
+    _, pal, ref = load()
     try:
-        print("Gelesen:", fmt(read_board(fr, rect, pal)))
+        print("Gelesen:", fmt(read_board(fr, rect, pal, ref)))
     except Unclear as e:
         print("Noch unklar:", e)
     return 0
@@ -195,7 +286,7 @@ def cmd_probe(_):
 
 def cmd_cells(args):
     """Farbe jedes der 16 Felder mit nächstem Palettenwert (zur Diagnose)."""
-    rect, pal = load()
+    rect, pal, ref = load()
     fr = grab()
     if "--board" in args:
         i = args.index("--board"); rect = tuple(int(x) for x in args[i + 1:i + 5])
@@ -204,23 +295,23 @@ def cmd_cells(args):
     for r in range(4):
         parts = []
         for c in range(4):
-            col = cell_color(fr, rect, r, c)
-            v, d = min(((val, dist(col, rgb)) for val, rgb in pal.items()), key=lambda t: t[1])
+            col = norm_color(fr, rect, r, c, ref)
+            v, d = classify(col, pal)
             parts.append(f"{col}→{v}({d:.0f})")
         print("  " + "  ".join(parts))
     return 0
 
 def cmd_read(_):
-    rect, pal = load()
+    rect, pal, ref = load()
     fr = grab()
     rect = rect or find_board(fr)
-    print(fmt(read_board(fr, rect, pal)))
+    print(fmt(read_board(fr, rect, pal, ref)))
     return 0
 
 def cmd_play(args):
     n = int(args[0]) if args and args[0].isdigit() else 20
     settle = float(args[args.index("--settle") + 1]) if "--settle" in args else 0.35
-    rect, pal = load()
+    rect, pal, ref = load()
     if not rect:
         rect = find_board(grab())
     x1, y1, x2, y2 = rect
@@ -228,7 +319,7 @@ def cmd_play(args):
     env = dict(os.environ); env.setdefault("MAX_STEPS", str(n + 10))
     score = done = stuck = 0
     t0 = time.time()
-    board = read_board(grab(), rect, pal)
+    board = read_board(grab(), rect, pal, ref)
     while done < n:
         seq = S.plan(board, 1)
         if not seq:
@@ -244,22 +335,33 @@ def cmd_play(args):
             done += 1
             _, g, _ = S.move(board, dname)
             time.sleep(settle)
-            try:
-                new = read_board(grab(), rect, pal)
-            except Unclear as e:
-                time.sleep(0.5)
+            pred = S.move(board, dname)[0]
+            new, err = None, None
+            for attempt in range(3):
                 try:
-                    new = read_board(grab(), rect, pal)
-                except Unclear as e2:
-                    print(f"STOPP: {e2}"); done = n; break
-            if new == board:
-                stuck += 1
-                time.sleep(0.4)
-                new = read_board(grab(), rect, pal)
-                if new == board and stuck >= 3:
-                    print("STOPP: Brett ändert sich nicht (festgefahren oder falsch gelesen)"); done = n; break
-            else:
-                stuck = 0; score += g
+                    fr = grab()
+                    cols = [norm_color(fr, rect, i // 4, i % 4, ref) for i in range(16)]
+                except Unclear as e:
+                    err = e; time.sleep(0.5); continue
+                ok, nb, learned = check(cols, pred, pal, True)
+                if ok:
+                    new = nb
+                    new_samples = [(v, c) for v, c in learned if not any(abs(v - w) == 0 and dist(c, rgb) < 3 for w, rgb in pal)]
+                    if new_samples:
+                        save_samples(new_samples); pal = load()[1]
+                        print("Neu gelernt:", ", ".join(f"{v}={c}" for v, c in new_samples), flush=True)
+                    stuck = 0; score += g
+                    break
+                ok0, _, _ = check(cols, board, pal, False)
+                if ok0:                    # Wisch ohne Wirkung: Brett unverändert
+                    new = board; stuck += 1
+                    if stuck >= 3:
+                        print("STOPP: Brett ändert sich nicht (festgefahren oder falsch gelesen)"); done = n
+                    break
+                err = Unclear("Bild passt weder zum erwarteten noch zum alten Brett (Animation, Werbung oder verdeckt?)")
+                time.sleep(0.5)
+            if new is None:
+                print(f"STOPP: {err}"); done = n; break
             board = new
             break
     secs = time.time() - t0
