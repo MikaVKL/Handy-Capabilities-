@@ -54,6 +54,8 @@ def spawn(b):
     return b[:i] + (2 if random.random() < 0.9 else 4,) + b[i + 1:]
 
 def main(a):
+    if os.environ.get("FAKE_FAIL") == "1":
+        print("error: no devices/emulators found", file=sys.stderr); return 1
     st = load()
     if a[:2] == ["exec-out", "screencap"]:
         sys.stdout.buffer.write(render(st)); return 0

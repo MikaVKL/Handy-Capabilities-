@@ -44,4 +44,5 @@ PY
 check "Kein 2048 sichtbar (mit Kalibrierung)" 'FRAME_FILE=/tmp/claude-0/white.raw $P read 2>&1 | grep -q "UNKLAR"'
 rm -f "$HANDY_DIR/state/2048-calib.json"
 check "Kein 2048 sichtbar (ohne Kalibrierung)" 'FRAME_FILE=/tmp/claude-0/white.raw $P read 2>&1 | grep -q "nicht gefunden"'
+check "ADB nicht verbunden: lesbare Meldung" 'out=$(FAKE_FAIL=1 $P read 2>&1); echo "$out" | grep -q "ADB liefert kein Bild" && ! echo "$out" | grep -q Traceback'
 rm -rf "$W"; [ $fail -eq 0 ] && echo "Alle Tests bestanden" || { echo "Tests fehlgeschlagen"; exit 1; }

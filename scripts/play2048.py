@@ -25,7 +25,17 @@ class Unclear(Exception):
 
 def grab():
     f = os.environ.get("FRAME_FILE")
-    data = open(f, "rb").read() if f else subprocess.run(["adb", "exec-out", "screencap"], capture_output=True, check=True).stdout
+    if f:
+        data = open(f, "rb").read()
+    else:
+        try:
+            r = subprocess.run(["adb", "exec-out", "screencap"], capture_output=True)
+        except FileNotFoundError:
+            raise Unclear("adb nicht gefunden (pkg install android-tools)")
+        if r.returncode != 0 or len(r.stdout) < 16:
+            msg = (r.stderr.decode(errors="replace").strip() or "kein Bild erhalten")[:120]
+            raise Unclear(f"ADB liefert kein Bild ({msg}). Verbindung prüfen: adb devices; ggf. Wireless debugging einschalten und adb connect IP:PORT")
+        data = r.stdout
     w, h = struct.unpack("<II", data[:8])
     hdr = len(data) - w * h * 4
     if hdr not in (12, 16):
