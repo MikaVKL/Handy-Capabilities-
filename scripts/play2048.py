@@ -18,6 +18,8 @@ import solve2048 as S
 
 HANDY = os.environ.get("HANDY_DIR", os.path.expanduser("~/handy"))
 CALIB = os.path.join(HANDY, "state", "2048-calib.json")
+# Leere Felder dürfen stärker abweichen (Leuchten großer Kacheln färbt Nachbarfelder), Kacheln liegen weit weg davon
+EMPTY_TOL = 40
 LAST = os.path.join(HANDY, "state", "2048-last.json")     # Endbrett des letzten Laufs
 SWIPE = os.environ.get("SWIPE_SCRIPT", os.path.join(os.path.dirname(os.path.abspath(__file__)), "swipe.sh"))
 KEY = os.path.join(os.path.dirname(SWIPE), "key.sh")
@@ -192,7 +194,7 @@ def read_cells(fr, rect, pal, gap_ref=None):
         for c in range(4):
             col = norm_color(fr, rect, r, c, gap_ref)
             v, d = classify(col, pal)
-            vals.append(v if d <= 14 else None)
+            vals.append(v if d <= 14 or (v == 0 and d <= EMPTY_TOL) else None)
             cols.append(col)
     return vals, cols
 
@@ -236,6 +238,8 @@ def read_board(fr, rect, pal, gap_ref=None):
     vals, cols = read_cells(fr, rect, pal, gap_ref)
     if None in vals and infer_new_tile(vals, cols, pal):
         vals, cols = read_cells(fr, rect, pal, gap_ref)
+    if all(v == 0 for v in vals):
+        raise Unclear("Kein Stein erkennbar (Spiel vorbei, Anzeige verdeckt oder 2048 nicht im Vordergrund?)")
     bad = [(i // 4, i % 4, cols[i]) for i, v in enumerate(vals) if v is None]
     if bad:
         raise Unclear("Farben nicht erkannt (Spiel vorbei, Anzeige verdeckt oder 2048 nicht im Vordergrund?): "
@@ -253,7 +257,7 @@ def check(cols, expected, samples, allow_spawn):
     for i, e in enumerate(expected):
         col = cols[i]
         d0 = near(col, 0, samples)
-        is_empty = d0 is not None and d0 <= 14
+        is_empty = d0 is not None and d0 <= EMPTY_TOL
         if e == 0:
             if is_empty:
                 continue
