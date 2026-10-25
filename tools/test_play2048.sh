@@ -29,7 +29,7 @@ rm -f "$HANDY_DIR/state/steps"
 check "Spielende wird erkannt"          '$P play 5 --settle 0 | grep -q "SPIEL VORBEI"'
 python3 - <<'PY'
 import json, os
-json.dump({"board":[2,4,2,4,4,2,4,2,2,4,2,4,4,2,4,8],"score":0,"over":True}, open(os.environ["FAKE_STATE"],"w"))
+json.dump({"board":[2,4,2,4,4,2,4,2,2,4,2,4,4,2,4,512],"score":0,"over":True}, open(os.environ["FAKE_STATE"],"w"))
 PY
 check "Game-over-Schleier gibt UNKLAR"  '$P read 2>&1 | grep -q UNKLAR'
 init 5; python3 - <<'PY'

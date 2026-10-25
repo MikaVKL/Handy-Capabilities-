@@ -195,8 +195,34 @@ def read_cells(fr, rect, pal, gap_ref=None):
             cols.append(col)
     return vals, cols
 
+def infer_new_tile(vals, cols, pal):
+    """Eine bisher nie gesehene Kachelfarbe ist fast sicher der nächsthöhere Wert (2 x größter bekannter Wert):
+    Höhere Steine entstehen nur durch Verschmelzen der bisher größten. Nur wenn alle unbekannten Felder dieselbe Farbe haben.
+    Die Probe wird ergänzt und gespeichert; die Vorhersageprüfung im Spiel fängt Irrtümer ab."""
+    unknown = [i for i, v in enumerate(vals) if v is None]
+    try:
+        learned = json.load(open(CALIB)).get("palette")
+    except (OSError, ValueError):
+        learned = None
+    if not learned:
+        return False        # nur mit selbst gelernter Palette (die eingebaute enthält Werte, die nie gesehen wurden)
+    known = [v for v in {v for v, _ in pal} if v]
+    if not unknown or not known or len(unknown) > 2 or len(unknown) > 16 - 10:
+        return False        # viele unbekannte Felder = Schleier, Werbung o. ä., kein neuer Stein
+    if any(dist(cols[i], cols[unknown[0]]) > 8 for i in unknown):
+        return False
+    new = 2 * max(known)
+    if new > 8192 or any(2 ** k not in known for k in range(1, new.bit_length() - 1)):
+        return False        # Lücke in den bekannten Werten: nicht raten
+    pal.append((new, cols[unknown[0]]))
+    save_samples([(new, cols[unknown[0]])])
+    print(f"Neue Kachelfarbe {cols[unknown[0]]}: als {new} angenommen", flush=True)
+    return True
+
 def read_board(fr, rect, pal, gap_ref=None):
     vals, cols = read_cells(fr, rect, pal, gap_ref)
+    if None in vals and infer_new_tile(vals, cols, pal):
+        vals, cols = read_cells(fr, rect, pal, gap_ref)
     bad = [(i // 4, i % 4, cols[i]) for i, v in enumerate(vals) if v is None]
     if bad:
         raise Unclear("Farben nicht erkannt (Spiel vorbei, Anzeige verdeckt oder 2048 nicht im Vordergrund?): "
