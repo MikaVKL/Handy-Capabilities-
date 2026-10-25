@@ -90,7 +90,7 @@ def main(a):
     if a[:2] == ["exec-out", "screencap"]:
         sys.stdout.buffer.write(render(st)); return 0
     if a[:2] == ["shell", "dumpsys"]:
-        print(f"  mCurrentFocus=Window{{1 u0 {st.get('fg', 'com.gabrielecirulli.app2048')}/x.Y}}"); return 0
+        print(f"  mCurrentFocus=Window{{1 u0 {'com.google.android.gms' if st.get('ad') else st.get('fg', 'com.gabrielecirulli.app2048')}/x.Y}}"); return 0
     if a[:3] == ["shell", "input", "keyevent"]:
         if len(a) > 3 and a[3] == "4" and st.get("ad"):
             st["ad"] = False; save(st)

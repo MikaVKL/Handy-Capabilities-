@@ -222,8 +222,9 @@ def infer_new_tile(vals, cols, pal):
     if not learned:
         return False        # nur mit selbst gelernter Palette (die eingebaute enthält Werte, die nie gesehen wurden)
     known = [v for v in {v for v, _ in pal} if v]
-    if not known or any(dist(cols[i], cols[unknown[0]]) > 8 for i in unknown):
-        return False
+    c0 = cols[unknown[0]]
+    if not known or any(dist(cols[i], c0) > 8 for i in unknown) or max(c0) - min(c0) < 60:
+        return False        # große Kacheln sind kräftig gelb/orange; Graues ist Schleier, Dialog o. ä.
     new = 2 * max(known)
     if new > 8192 or any(2 ** k not in known for k in range(1, new.bit_length() - 1)):
         return False        # Lücke in den bekannten Werten: nicht raten
@@ -361,6 +362,17 @@ def cmd_read(_):
     print(fmt(read_board(fr, rect, pal, ref)))
     return 0
 
+def focus():
+    """Fenster mit Eingabefokus (Paket/Activity); leer, wenn nicht ermittelbar."""
+    try:
+        out = subprocess.run(["adb", "shell", "dumpsys", "window"], capture_output=True, text=True, timeout=10).stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    for line in out.splitlines():
+        if "mCurrentFocus=" in line:
+            return line.split("mCurrentFocus=", 1)[1].strip().split()[-1].rstrip("}")
+    return ""
+
 def prepare(rect, pal, ref):
     """Startet ohne Handarbeit: Brett und Hintergrundfarbe frisch bestimmen, kurz auf Einblendanimation warten
     und bei einem frischen Spiel (nur 1-2 unbekannte Steine, Rest leer) diese als 2 anlernen (nur im Speicher;
@@ -416,6 +428,7 @@ def cmd_play(args):
     folge = []
     back_used = 0
     t0 = time.time()
+    focus0 = focus()
     board = read_board(grab(), rect, pal, ref)
     while done < n and not (limit and time.time() - t0 >= limit):
         t = time.time(); seq = S.plan(board, 1); tm["Rechnen"] += time.time() - t
@@ -463,6 +476,12 @@ def cmd_play(args):
                     time.sleep(0.5)
                 if new is not None or back_used >= 2:
                     break
+                if focus0 and focus() == focus0:
+                    # Das Spiel selbst ist im Vordergrund: keine Werbung, Zurück würde die App verlassen/Einstellungen öffnen
+                    print("Bild passt nicht, aber das Spiel ist im Vordergrund: kein Zurück, prüfe erneut", flush=True)
+                    back_used += 1
+                    time.sleep(1.5)
+                    continue
                 back_used += 1
                 print("Bild passt nicht (Werbung?): drücke Zurück und prüfe erneut", flush=True)
                 subprocess.run([KEY, "back"], env=env, capture_output=True)
