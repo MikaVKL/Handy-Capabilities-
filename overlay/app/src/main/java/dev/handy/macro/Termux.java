@@ -49,6 +49,13 @@ final class Termux {
             Toast.makeText(c, "Kein Auftrag gespeichert (✎ antippen).", Toast.LENGTH_SHORT).show();
             return;
         }
+        String problem = Checks.blocker(c);
+        if (problem != null) {
+            Toast.makeText(c, problem, Toast.LENGTH_LONG).show();
+            return;
+        }
+        Boolean ab = Checks.autoBlocker(c);
+        if (ab != null && ab) Toast.makeText(c, "Auto Blocker ist an – Debugging kann abgeschaltet werden.", Toast.LENGTH_SHORT).show();
         run(c, MACRO, task.trim());
     }
 

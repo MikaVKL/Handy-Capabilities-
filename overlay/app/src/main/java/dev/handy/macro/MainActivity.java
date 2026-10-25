@@ -31,6 +31,12 @@ public class MainActivity extends Activity {
                 startForegroundService(new Intent(this, OverlayService.class));
             }
         }));
+        root.addView(btn("Wireless Debugging einschalten", v -> {
+            boolean ok = Checks.enableAdbWifi(this);
+            android.widget.Toast.makeText(this, ok ? "Eingeschaltet" : "Geht nur nach install-overlay.sh (WRITE_SECURE_SETTINGS)", android.widget.Toast.LENGTH_LONG).show();
+            onResume();
+        }));
+        root.addView(btn("Entwickleroptionen öffnen", v -> startActivity(new Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS))));
         root.addView(btn("Bedienfeld ausblenden", v -> stopService(new Intent(this, OverlayService.class))));
         root.addView(btn("Auftrag bearbeiten", v -> startActivity(new Intent(this, TaskActivity.class))));
         setContentView(root);
@@ -44,6 +50,7 @@ public class MainActivity extends Activity {
         boolean rc = checkSelfPermission("com.termux.permission.RUN_COMMAND") == PackageManager.PERMISSION_GRANTED;
         status.setText("Über anderen Apps: " + (ov ? "ja" : "NEIN")
                 + "\nTermux-Erlaubnis: " + (rc ? "ja" : "NEIN (install-overlay.sh ausführen)")
+                + "\n" + Checks.report(this)
                 + "\nAuftrag: " + (Termux.task(this).isEmpty() ? "(leer)" : Termux.task(this)));
     }
 

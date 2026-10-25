@@ -16,6 +16,7 @@ command -v termux-reload-settings >/dev/null && termux-reload-settings
 adb install -r "$APK" || { echo "Installation fehlgeschlagen (Play Protect / Auto Blocker prüfen)"; exit 1; }
 adb shell pm grant $P com.termux.permission.RUN_COMMAND
 adb shell pm grant $P android.permission.POST_NOTIFICATIONS
+adb shell pm grant $P android.permission.WRITE_SECURE_SETTINGS
 adb shell appops set $P SYSTEM_ALERT_WINDOW allow
 adb shell am start -n $P/.MainActivity >/dev/null
 echo "Fertig. In der App 'Bedienfeld einblenden' tippen. Termux einmal komplett beenden und neu öffnen, damit allow-external-apps gilt."
