@@ -289,6 +289,12 @@ def check(cols, expected, samples, allow_spawn):
             continue
         if is_empty:
             return False, None, []
+        if e >= 128:
+            # Gelbe Großkacheln (128 bis 2048) sehen fast gleich aus, dazu kommt das Leuchten: hier nur prüfen, dass es
+            # eine Großkachel ist; der genaue Wert steht durch die exakte Vorhersage fest.
+            dy = min((dist(col, rgb) for val, rgb in samples if val >= 128), default=None)
+            if dy is not None and dy <= 32:
+                continue
         d = near(col, e, samples)
         if d is None:
             learned.append((e, col))          # Wert noch nie gesehen: Farbe aus der Vorhersage lernen
@@ -402,6 +408,34 @@ def save_last(board, pred=None):
     except OSError:
         pass
 
+def reconcile(board):
+    """Gelbe Großkacheln sind farblich kaum zu unterscheiden. Passt das gelesene Brett zum gemerkten Brett oder dessen
+    Vorhersage (Unterschiede nur bei Großkacheln und höchstens einem neuen Stein), gelten deren genaue Werte."""
+    try:
+        saved = json.load(open(LAST))
+    except (OSError, ValueError):
+        return board
+    for cand in (saved.get("pred"), saved.get("board")):
+        if not cand or len(cand) != 16:
+            continue
+        out, spawn, fit = list(board), 0, True
+        for i in range(16):
+            a, b = board[i], cand[i]
+            if a == b:
+                continue
+            if a >= 128 and b >= 128:
+                out[i] = b
+            elif b == 0 and a in (2, 4) and not spawn:
+                spawn = 1
+            else:
+                fit = False
+                break
+        if fit:
+            if tuple(out) != tuple(board):
+                print("Großkacheln aus dem gemerkten Brett übernommen:", fmt(out), flush=True)
+            return tuple(out)
+    return board
+
 def focus():
     """Fenster mit Eingabefokus (Paket/Activity); leer, wenn nicht ermittelbar."""
     try:
@@ -469,7 +503,7 @@ def cmd_play(args):
     back_used = 0
     t0 = time.time()
     focus0 = focus()
-    board = read_board(grab(), rect, pal, ref, loose=True)
+    board = reconcile(read_board(grab(), rect, pal, ref, loose=True))
     while done < n and not (limit and time.time() - t0 >= limit):
         t = time.time(); seq = S.plan(board, 1); tm["Rechnen"] += time.time() - t
         if not seq:
