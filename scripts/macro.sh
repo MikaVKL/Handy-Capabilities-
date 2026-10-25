@@ -62,7 +62,7 @@ echo "Start: $pkg"; termux-toast "Start: $pkg" >/dev/null 2>&1 || true; "$DIR/st
 
 cd "$HANDY_DIR" || exit 1
 if [ "$direct" = "play2048" ] && [[ "$task" =~ ([0-9]+) ]] && [ "${BASH_REMATCH[1]}" -le 500 ]; then
-  python3 "$DIR/play2048.py" play "${BASH_REMATCH[1]}" > "$OUT" 2>&1
+  MAX_STEPS=$(( ${BASH_REMATCH[1]} + 10 )) python3 "$DIR/play2048.py" play "${BASH_REMATCH[1]}" > "$OUT" 2>&1
 else
   command -v claude >/dev/null 2>&1 || { rm -f "$STATE/pid"; "$DIR/end-run.sh" >/dev/null 2>&1; say "claude nicht gefunden (PATH in Hintergrundläufen). Siehe README."; exit 1; }
   model="${HANDY_MODEL:-haiku}"
