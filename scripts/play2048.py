@@ -18,6 +18,7 @@ import solve2048 as S
 
 HANDY = os.environ.get("HANDY_DIR", os.path.expanduser("~/handy"))
 CALIB = os.path.join(HANDY, "state", "2048-calib.json")
+LAST = os.path.join(HANDY, "state", "2048-last.json")     # Endbrett des letzten Laufs
 SWIPE = os.environ.get("SWIPE_SCRIPT", os.path.join(os.path.dirname(os.path.abspath(__file__)), "swipe.sh"))
 KEY = os.path.join(os.path.dirname(SWIPE), "key.sh")
 BOARD_BG = (187, 173, 160)
@@ -196,10 +197,24 @@ def read_cells(fr, rect, pal, gap_ref=None):
     return vals, cols
 
 def infer_new_tile(vals, cols, pal):
-    """Eine bisher nie gesehene Kachelfarbe ist fast sicher der nächsthöhere Wert (2 x größter bekannter Wert):
-    Höhere Steine entstehen nur durch Verschmelzen der bisher größten. Nur wenn alle unbekannten Felder dieselbe Farbe haben.
-    Die Probe wird ergänzt und gespeichert; die Vorhersageprüfung im Spiel fängt Irrtümer ab."""
+    """Unbekannte Kachelfarben beim Start eines Laufs (keine Vorhersage vorhanden). Reihenfolge:
+    1. Endbrett des letzten Laufs: stimmen alle erkannten Felder damit überein, übernehmen die unbekannten dessen Werte
+       (Fortsetzen derselben Partie).
+    2. Sonst nur ein Stein mit neuer Farbe: nächsthöherer Wert (2 x größter bekannter Wert), wenn die bekannten Werte
+       lückenlos sind. Nur im Speicher; im Spiel lernt die Vorhersageprüfung die Farben dauerhaft."""
     unknown = [i for i, v in enumerate(vals) if v is None]
+    if not unknown or len(unknown) > 2:
+        return False        # viele unbekannte Felder = Schleier, Werbung o. ä., kein neuer Stein
+    try:
+        last = json.load(open(LAST))["board"]
+    except (OSError, ValueError, KeyError):
+        last = None
+    if last and all(vals[i] == last[i] for i in range(16) if vals[i] is not None) and all(last[i] for i in unknown):
+        for i in unknown:
+            pal.append((last[i], cols[i]))
+        print("Unbekannte Farben aus dem Endbrett des letzten Laufs übernommen:",
+              ", ".join(f"{last[i]}" for i in unknown), flush=True)
+        return True
     try:
         learned = json.load(open(CALIB)).get("palette")
     except (OSError, ValueError):
@@ -207,15 +222,12 @@ def infer_new_tile(vals, cols, pal):
     if not learned:
         return False        # nur mit selbst gelernter Palette (die eingebaute enthält Werte, die nie gesehen wurden)
     known = [v for v in {v for v, _ in pal} if v]
-    if not unknown or not known or len(unknown) > 2 or len(unknown) > 16 - 10:
-        return False        # viele unbekannte Felder = Schleier, Werbung o. ä., kein neuer Stein
-    if any(dist(cols[i], cols[unknown[0]]) > 8 for i in unknown):
+    if not known or any(dist(cols[i], cols[unknown[0]]) > 8 for i in unknown):
         return False
     new = 2 * max(known)
     if new > 8192 or any(2 ** k not in known for k in range(1, new.bit_length() - 1)):
         return False        # Lücke in den bekannten Werten: nicht raten
     pal.append((new, cols[unknown[0]]))
-    save_samples([(new, cols[unknown[0]])])
     print(f"Neue Kachelfarbe {cols[unknown[0]]}: als {new} angenommen", flush=True)
     return True
 
@@ -469,6 +481,10 @@ def cmd_play(args):
             break
         if halted:
             break
+    try:
+        json.dump({"board": list(board)}, open(LAST, "w"))
+    except OSError:
+        pass
     secs = time.time() - t0
     print(f"Züge: {done}, geschätzter Punktestand: {score}, größte Kachel: {max(board)}, Dauer: {secs:.0f}s ({secs/max(done,1):.1f}s pro Zug)")
     print("Zeit pro Zug: " + ", ".join(f"{k} {v / max(done, 1):.2f}s" for k, v in tm.items()))
