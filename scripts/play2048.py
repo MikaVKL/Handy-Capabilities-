@@ -354,11 +354,23 @@ def prepare(rect, pal, ref):
     und bei einem frischen Spiel (nur 1-2 unbekannte Steine, Rest leer) diese als 2 anlernen (nur im Speicher;
     die Vorhersageprüfung im Spiel fängt eine Fehlannahme ab)."""
     fr = grab()
+    stored = rect
     try:
-        rect = find_board(fr)
+        found = find_board(fr)
     except Unclear:
-        if not rect:
+        if not stored:
             raise
+        found = None
+    rect = found or stored
+    if found and stored and max(abs(a - b) for a, b in zip(found, stored)) > 15:
+        # Gefundenes Brett weicht vom gespeicherten ab (Fehlerkennung möglich, z. B. Logo/Anzeige statt Brett):
+        # das gespeicherte nehmen, wenn es sich lesen lässt
+        try:
+            read_cells(fr, tuple(stored), pal, gap_median(fr, tuple(stored)))
+            rect = tuple(stored)
+        except Exception:
+            pass
+    print(f"Brett: {tuple(rect)}" + (f" (gespeichert {tuple(stored)})" if stored and tuple(stored) != tuple(rect) else ""), flush=True)
     ref = gap_median(fr, rect)
     for _ in range(4):
         fr = grab()
