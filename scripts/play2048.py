@@ -271,6 +271,13 @@ def near(col, v, samples):
     ds = [dist(col, rgb) for val, rgb in samples if val == v]
     return min(ds) if ds else None
 
+WHY = ""
+
+def fail(msg):
+    global WHY
+    WHY = msg
+    return False, None, []
+
 def check(cols, expected, samples, allow_spawn):
     """Passt das Bild zum erwarteten Brett? Gibt (ok, Brett mit neuem Stein, neue Proben) zurück.
     Nur ein einziger neuer Stein (2 oder 4) in einem leeren Feld ist erlaubt, und nur wenn allow_spawn gesetzt ist."""
@@ -284,11 +291,11 @@ def check(cols, expected, samples, allow_spawn):
             if is_empty:
                 continue
             if not allow_spawn or spawn is not None:
-                return False, None, []
+                return fail(f"Z{i//4+1}S{i%4+1}: unerwarteter Stein (zweiter neuer Stein oder kein Spawn erlaubt)")
             spawn = i
             continue
         if is_empty:
-            return False, None, []
+            return fail(f"Z{i//4+1}S{i%4+1}: leer gemessen {col}, erwartet {e}")
         if e >= 128:
             # Gelbe Großkacheln (128 bis 2048) sehen fast gleich aus, dazu kommt das Leuchten: hier nur prüfen, dass es
             # eine Großkachel ist; der genaue Wert steht durch die exakte Vorhersage fest.
@@ -304,10 +311,10 @@ def check(cols, expected, samples, allow_spawn):
             # Abweichende Farbe: meist Leuchten einer Nachbarkachel. Ein bis zwei solche Felder gelten als Farbvariante
             # des erwarteten Werts (Vorhersage ist exakt), außer die Farbe gleicht fast genau einem anderen Wert.
             if vb != e and db < 6:
-                return False, None, []
+                return fail(f"Z{i//4+1}S{i%4+1}: erwartet {e}, Farbe {col} gleicht {vb} (Abstand {db:.0f})")
             suspects.append((e, col))
     if len(suspects) > 2:
-        return False, None, []
+        return fail(f"{len(suspects)} Felder weichen in der Farbe ab: " + ", ".join(f"{v}={c}" for v, c in suspects))
     learned.extend(suspects)
     if spawn is not None:
         col = cols[spawn]
@@ -319,7 +326,7 @@ def check(cols, expected, samples, allow_spawn):
         elif d4 is not None:
             val = 4 if d4 <= 7 else 2
         else:
-            return False, None, []
+            return fail(f"neuer Stein {col} nicht als 2 oder 4 erkennbar (keine Proben)")
         out[spawn] = val
         learned.append((val, col))
     return True, tuple(out), learned
@@ -460,12 +467,13 @@ def prepare(rect, pal, ref):
             raise
         found = None
     rect = found or stored
-    if found and stored and max(abs(a - b) for a, b in zip(found, stored)) > 15:
-        # Gefundenes Brett weicht vom gespeicherten ab (Fehlerkennung möglich, z. B. Logo/Anzeige statt Brett):
-        # das gespeicherte nehmen, wenn es sich lesen lässt
+    if stored:
+        # Das gespeicherte Brett stammt aus einer sauberen Kalibrierung; die frische Erkennung kann um einige Pixel
+        # danebenliegen (Leuchten, Schatten) und verschiebt dann alle Messpunkte. Gespeichert bevorzugen, wenn lesbar.
         try:
-            read_cells(fr, tuple(stored), pal, gap_median(fr, tuple(stored)))
-            rect = tuple(stored)
+            vals, _ = read_cells(fr, tuple(stored), pal, gap_median(fr, tuple(stored)), loose=True)
+            if sum(v is None for v in vals) <= 2:
+                rect = tuple(stored)
         except Exception:
             pass
     print(f"Brett: {tuple(rect)}" + (f" (gespeichert {tuple(stored)})" if stored and tuple(stored) != tuple(rect) else ""), flush=True)
@@ -568,6 +576,7 @@ def cmd_play(args):
                     for line in explain(last_cols, last_pred, pal):
                         print("  ", line)
                     print("   Erwartetes Brett:", fmt(last_pred))
+                    print("   Grund der Ablehnung:", WHY)
                 halted = True; break
             board = new
             if halted:
