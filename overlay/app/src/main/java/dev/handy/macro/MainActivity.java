@@ -23,6 +23,7 @@ public class MainActivity extends Activity {
         root.setPadding(48, 96, 48, 48);
         status = new TextView(this);
         status.setTextSize(16);
+        status.setPadding(0, 0, 0, (int) (getResources().getDisplayMetrics().density * 16));
         root.addView(status);
         root.addView(btn("Bedienfeld einblenden", v -> {
             if (!Settings.canDrawOverlays(this)) {
@@ -58,7 +59,10 @@ public class MainActivity extends Activity {
         Button b = new Button(this);
         b.setText(t);
         b.setOnClickListener(l);
-        b.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        int m = (int) (getResources().getDisplayMetrics().density * 8);
+        lp.setMargins(0, m, 0, m);
+        b.setLayoutParams(lp);
         return b;
     }
 }

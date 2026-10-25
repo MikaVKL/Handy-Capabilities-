@@ -62,10 +62,9 @@ final class Checks {
 
     /** Kurzer Statustext für die Hauptseite. */
     static String report(Context c) {
-        Boolean ab = autoBlocker(c);
         return "WLAN: " + (wifi(c) ? "ja" : "NEIN (ohne WLAN keine Funktion)")
                 + "\nWireless Debugging: " + (adbWifi(c) ? "an" : "AUS")
-                + "\nAuto Blocker: " + (ab == null ? "unbekannt (in den Einstellungen prüfen)" : ab ? "AN (kann Debugging abschalten)" : "aus");
+                + "\nHinweis: Auto Blocker bitte selbst prüfen (kann Debugging abschalten)";
     }
 
     /** Fehlermeldung, wenn ein Start nicht möglich ist; null, wenn alles passt. */
