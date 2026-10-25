@@ -7,7 +7,7 @@
 #          macro.sh --app PAKET "Auftrag"
 DIR="$(cd "$(dirname "$0")" && pwd)"; . "$DIR/lib.sh"
 APPS="$HANDY_DIR/apps"; OUT="$STATE/claude.out"
-say() { echo "$*"; termux-toast "$*" >/dev/null 2>&1 || true; }
+say() { echo "$*"; termux-toast "$*" >/dev/null 2>&1 || true; "$DIR/status.sh" error "$*"; }
 
 # ADB prüfen; wenn nicht verbunden, einmal selbst verbinden (mDNS), sonst klar melden
 if [ "$(adb get-state 2>/dev/null)" != "device" ]; then
@@ -58,12 +58,13 @@ fi
 echo $$ > "$STATE/pid"
 export MAX_STEPS="${HANDY_MAX_STEPS:-150}"
 log "macro: $pkg | $task"
-say "Start: $pkg"
+echo "Start: $pkg"; termux-toast "Start: $pkg" >/dev/null 2>&1 || true; "$DIR/status.sh" running
 
 cd "$HANDY_DIR" || exit 1
 if [ "$direct" = "play2048" ] && [[ "$task" =~ ([0-9]+) ]] && [ "${BASH_REMATCH[1]}" -le 500 ]; then
   python3 "$DIR/play2048.py" play "${BASH_REMATCH[1]}" > "$OUT" 2>&1
 else
+  command -v claude >/dev/null 2>&1 || { rm -f "$STATE/pid"; "$DIR/end-run.sh" >/dev/null 2>&1; say "claude nicht gefunden (PATH in Hintergrundläufen). Siehe README."; exit 1; }
   model="${HANDY_MODEL:-haiku}"
   prompt="Du bedienst das Handy über die Skripte in $DIR (siehe CLAUDE.md). Die App im Vordergrund beim Start war $pkg."
   [ -n "$profile" ] && prompt="$prompt Lies zuerst den Steckbrief $APPS/$profile."
@@ -77,4 +78,5 @@ rm -f "$STATE/pid"
 "$DIR/end-run.sh" >/dev/null 2>&1
 termux-notification --id handy-result --title "KI-Makro fertig" --content "${summary:-fertig}" >/dev/null 2>&1 || true
 "$DIR/panel.sh" idle >/dev/null 2>&1 || true
+"$DIR/status.sh" done "${summary:-fertig}"
 echo "$summary"

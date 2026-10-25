@@ -10,3 +10,4 @@ fi
 "$HOME/handy/scripts/screen-timeout.sh" off
 "$HOME/handy/scripts/panel.sh" idle
 termux-toast "Gestoppt"
+"$HOME/handy/scripts/status.sh" stopped

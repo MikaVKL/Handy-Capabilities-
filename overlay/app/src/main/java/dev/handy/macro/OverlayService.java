@@ -5,7 +5,12 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.os.Handler;
+import android.os.Looper;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.graphics.drawable.GradientDrawable;
@@ -23,6 +28,15 @@ public class OverlayService extends Service {
     private WindowManager wm;
     private View panel;
     private WindowManager.LayoutParams lp;
+    private TextView grip;
+    private final Handler ui = new Handler(Looper.getMainLooper());
+    private final Runnable toIdle = () -> setState("idle", "");
+    private final BroadcastReceiver statusRx = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context c, Intent i) {
+            setState(i.getStringExtra("state"), i.getStringExtra("text"));
+        }
+    };
 
     @Override
     public IBinder onBind(Intent i) {
@@ -46,7 +60,10 @@ public class OverlayService extends Service {
             stopSelf();
             return START_NOT_STICKY;
         }
-        if (panel == null) show();
+        if (panel == null) {
+            show();
+            registerReceiver(statusRx, new IntentFilter("dev.handy.macro.STATUS"), Context.RECEIVER_EXPORTED);
+        }
         return START_STICKY;
     }
 
@@ -60,10 +77,16 @@ public class OverlayService extends Service {
         bg.setCornerRadius(60);
         row.setBackground(bg);
 
-        TextView grip = label("KI", Color.rgb(180, 180, 255));
+        grip = label("KI", Color.rgb(180, 180, 255));
         row.addView(grip);
-        row.addView(button("▶", Color.rgb(90, 200, 120), () -> Termux.start(this, Termux.task(this))));
-        row.addView(button("■", Color.rgb(230, 90, 90), () -> Termux.stop(this)));
+        row.addView(button("▶", Color.rgb(90, 200, 120), () -> {
+            setState("starting", "");
+            Termux.start(this, Termux.task(this));
+        }));
+        row.addView(button("■", Color.rgb(230, 90, 90), () -> {
+            setState("stopped", "");
+            Termux.stop(this);
+        }));
         row.addView(button("✎", Color.WHITE, () -> startActivity(
                 new Intent(this, TaskActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))));
         row.addView(button("✕", Color.LTGRAY, this::stopSelf));
@@ -100,6 +123,26 @@ public class OverlayService extends Service {
         wm.addView(panel, lp);
     }
 
+    /** Zeigt den Zustand am KI-Griff: Farbe und Text. */
+    private void setState(String state, String text) {
+        if (grip == null || state == null) return;
+        ui.removeCallbacks(toIdle);
+        int color; String t;
+        switch (state) {
+            case "starting": case "running": color = Color.rgb(90, 200, 120); t = "KI…"; break;
+            case "done": color = Color.rgb(90, 200, 120); t = "KI ✓"; break;
+            case "error": color = Color.rgb(230, 90, 90); t = "KI !"; break;
+            case "stopped": color = Color.rgb(230, 170, 60); t = "KI ■"; break;
+            default: color = Color.rgb(180, 180, 255); t = "KI";
+        }
+        grip.setTextColor(color);
+        grip.setText(t);
+        if (text != null && !text.isEmpty() && (state.equals("done") || state.equals("error"))) {
+            android.widget.Toast.makeText(this, text, android.widget.Toast.LENGTH_LONG).show();
+        }
+        if (state.equals("done") || state.equals("error") || state.equals("stopped")) ui.postDelayed(toIdle, 6000);
+    }
+
     private TextView label(String t, int color) {
         TextView v = new TextView(this);
         v.setText(t);
@@ -112,12 +155,18 @@ public class OverlayService extends Service {
 
     private TextView button(String t, int color, Runnable r) {
         TextView v = label(t, color);
-        v.setOnClickListener(x -> r.run());
+        v.setOnClickListener(x -> {
+            x.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP);
+            x.animate().scaleX(1.5f).scaleY(1.5f).setDuration(90)
+                    .withEndAction(() -> x.animate().scaleX(1f).scaleY(1f).setDuration(120).start()).start();
+            r.run();
+        });
         return v;
     }
 
     @Override
     public void onDestroy() {
+        try { unregisterReceiver(statusRx); } catch (Exception ignored) {}
         if (panel != null) {
             try { wm.removeView(panel); } catch (Exception ignored) {}
             panel = null;

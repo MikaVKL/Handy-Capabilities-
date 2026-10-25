@@ -3,5 +3,5 @@
 - Statusanzeige am Bedienfeld (läuft / fertig / Fehler)
 - Größe und Farbe des Bedienfelds einstellbar
 - Hauptseite: besseres Layout, richtiges App-Symbol
-- Sichtbare Rückmeldung: Bedienfeld zeigt Zustand (bereit / läuft grün pulsierend / fertig / Fehler), ▶ wird beim Antippen kurz hervorgehoben, Ergebnis als Text am Bedienfeld
 - (erledigt, ungetestet) WLAN-/Wireless-Debugging-/Auto-Blocker-Prüfung in Hauptseite und vor ▶; Auto-Blocker-Schlüssel je nach One UI evtl. nicht lesbar (dann 'unbekannt')
+- (erledigt, ungetestet) Rückmeldung: Tipp-Animation + Haptik, KI-Griff zeigt Zustand (KI… / ✓ / ! / ■) über status.sh
