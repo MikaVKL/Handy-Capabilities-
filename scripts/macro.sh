@@ -18,6 +18,13 @@ if [ "$(adb get-state 2>/dev/null)" != "device" ]; then
   fi
 fi
 
+# Läuft schon ein Makro (doppeltes Antippen, doppelte Zustellung), nicht noch eins starten
+old=$(cat "$STATE/pid" 2>/dev/null)
+if [ -n "$old" ] && [ "$old" != "$$" ] && kill -0 "$old" 2>/dev/null && grep -q macro.sh "/proc/$old/cmdline" 2>/dev/null; then
+  say "Läuft schon. Erst ■ tippen."
+  exit 1
+fi
+
 pkg=""
 if [ "$1" = "--app" ]; then pkg="$2"; shift 2; fi
 if [ -z "$pkg" ]; then
@@ -66,6 +73,7 @@ Bei normalen Apps zuerst ui.sh, sonst Screenshots. Keine Zwischenkommentare; am 
 fi
 
 summary=$(tail -n 3 "$OUT" 2>/dev/null | tr '\n' ' ' | cut -c1-200)
+rm -f "$STATE/pid"
 "$DIR/end-run.sh" >/dev/null 2>&1
 termux-notification --id handy-result --title "KI-Makro fertig" --content "${summary:-fertig}" >/dev/null 2>&1 || true
 "$DIR/panel.sh" idle >/dev/null 2>&1 || true
