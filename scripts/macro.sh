@@ -61,7 +61,16 @@ log "macro: $pkg | $task"
 echo "Start: $pkg"; termux-toast "Start: $pkg" >/dev/null 2>&1 || true; "$DIR/status.sh" running
 
 cd "$HANDY_DIR" || exit 1
-if [ "$direct" = "play2048" ] && [[ "$task" =~ ([0-9]+) ]] && [ "${BASH_REMATCH[1]}" -le 500 ]; then
+# Zeitvorgabe ("10 Minuten", "1 Stunde", "90 Sekunden"), höchstens 2 Stunden
+secs=""
+if [[ "${task,,}" =~ ([0-9]+)[[:space:]]*(sekunden|sek|min|minuten|minute|std|stunde|stunden|h)([^a-zA-Z]|$) ]]; then
+  v=${BASH_REMATCH[1]}
+  case "${BASH_REMATCH[2]}" in sek|sekunden) secs=$v ;; min|minute|minuten) secs=$((v * 60)) ;; *) secs=$((v * 3600)) ;; esac
+  [ "$secs" -gt 7200 ] && secs=7200
+fi
+if [ "$direct" = "play2048" ] && [ -n "$secs" ]; then
+  MAX_STEPS=$secs python3 "$DIR/play2048.py" play --seconds "$secs" > "$OUT" 2>&1
+elif [ "$direct" = "play2048" ] && [[ "$task" =~ ([0-9]+) ]] && [ "${BASH_REMATCH[1]}" -le 500 ]; then
   MAX_STEPS=$(( ${BASH_REMATCH[1]} + 10 )) python3 "$DIR/play2048.py" play "${BASH_REMATCH[1]}" > "$OUT" 2>&1
 else
   command -v claude >/dev/null 2>&1 || { rm -f "$STATE/pid"; "$DIR/end-run.sh" >/dev/null 2>&1; say "claude nicht gefunden (PATH in Hintergrundläufen). Siehe README."; exit 1; }

@@ -48,6 +48,8 @@ check "Kein 2048 sichtbar (ohne Kalibrierung)" 'FRAME_FILE=/tmp/claude-0/white.r
 check "probe listet Flächen"          '$P probe | grep -q "rahmen=" && $P probe | head -n 3 | grep -q "(187, 173, 160)"'
 check "ADB nicht verbunden: lesbare Meldung" 'out=$(FAKE_FAIL=1 $P read 2>&1); echo "$out" | grep -q "ADB liefert kein Bild" && ! echo "$out" | grep -q Traceback'
 init 8; rm -f "$HANDY_DIR/state/steps"
+check "Zeitlimit: --seconds 2 spielt und endet" 'out=$($P play --seconds 2 --settle 0 2>&1); echo "$out" | grep -q "Züge: [1-9]"'
+init 8; rm -f "$HANDY_DIR/state/steps"
 check "Abbruch: Zugzähler zählt nur echte Züge" 'out=$(FAKE_OVER_AFTER=3 $P play 30 --settle 0 2>&1); echo "$out" | grep -q "STOPP" && echo "$out" | grep -q "Züge: 3,"'
 check "Abbruch: nennt abweichende Felder"      'echo "$out" | grep -q "erwartet"'
 init 9; rm -f "$HANDY_DIR/state/steps"

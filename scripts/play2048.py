@@ -351,6 +351,9 @@ def prepare(rect, pal, ref):
 def cmd_play(args):
     n = int(args[0]) if args and args[0].isdigit() else 20
     settle = float(args[args.index("--settle") + 1]) if "--settle" in args else 0.35
+    limit = float(args[args.index("--seconds") + 1]) if "--seconds" in args else None   # Zeitlimit statt Zugzahl
+    if limit:
+        n = 10**9
     rect, pal, ref = load()
     rect, pal, ref = prepare(rect, pal, ref)
     x1, y1, x2, y2 = rect
@@ -364,12 +367,12 @@ def cmd_play(args):
     back_used = 0
     t0 = time.time()
     board = read_board(grab(), rect, pal, ref)
-    while done < n:
+    while done < n and not (limit and time.time() - t0 >= limit):
         t = time.time(); seq = S.plan(board, 1); tm["Rechnen"] += time.time() - t
         if not seq:
             print("SPIEL VORBEI (kein Zug mehr möglich)"); break
         for dname in seq:
-            if done >= n:
+            if done >= n or (limit and time.time() - t0 >= limit):
                 break
             x1s, y1s, x2s, y2s = {"left": (cx + d, cy, cx - d, cy), "right": (cx - d, cy, cx + d, cy),
                                   "up": (cx, cy + d, cx, cy - d), "down": (cx, cy - d, cx, cy + d)}[dname]
