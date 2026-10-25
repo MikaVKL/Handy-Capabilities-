@@ -21,14 +21,19 @@ final class Checks {
         return Settings.Global.getInt(c.getContentResolver(), "adb_wifi_enabled", 0) == 1;
     }
 
-    /** true = an, false = aus, null = nicht ermittelbar (Schlüssel je nach One UI-Version verschieden). */
+    /** true = an, false = aus, null = nicht ermittelbar. Samsung nennt den Auto Blocker intern "rampart"
+     *  (Secure-Einstellungen rampart_blocked_*; 1 = Sperre aktiv). */
     static Boolean autoBlocker(Context c) {
-        for (String key : new String[]{"auto_blocker_enabled", "autoblocker_enabled"}) {
+        String[] keys = {"rampart_blocked_adb_cmd", "rampart_blocked_unknown_apps", "rampart_blocked_commands",
+                "rampart_blocked_at_cmd", "rampart_blocked_keystring"};
+        boolean found = false;
+        for (String key : keys) {
             int v = Settings.Secure.getInt(c.getContentResolver(), key, -1);
-            if (v < 0) v = Settings.Global.getInt(c.getContentResolver(), key, -1);
-            if (v >= 0) return v == 1;
+            if (v < 0) continue;
+            found = true;
+            if (v == 1) return true;
         }
-        return null;
+        return found ? Boolean.FALSE : null;
     }
 
     static boolean canWriteSecure(Context c) {
