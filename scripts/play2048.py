@@ -323,12 +323,36 @@ def cmd_read(_):
     print(fmt(read_board(fr, rect, pal, ref)))
     return 0
 
+def prepare(rect, pal, ref):
+    """Startet ohne Handarbeit: Brett und Hintergrundfarbe frisch bestimmen, kurz auf Einblendanimation warten
+    und bei einem frischen Spiel (nur 1-2 unbekannte Steine, Rest leer) diese als 2 anlernen (nur im Speicher;
+    die Vorhersageprüfung im Spiel fängt eine Fehlannahme ab)."""
+    fr = grab()
+    try:
+        rect = find_board(fr)
+    except Unclear:
+        if not rect:
+            raise
+    ref = gap_median(fr, rect)
+    for _ in range(4):
+        fr = grab()
+        vals, cols = read_cells(fr, rect, pal, ref)
+        if None not in vals:
+            return rect, pal, ref
+        time.sleep(0.5)
+    unknown = [i for i, v in enumerate(vals) if v is None]
+    empties = sum(1 for v in vals if v == 0)
+    if len(unknown) <= 2 and empties >= 16 - 2 - 0 and len(unknown) + empties == 16:
+        print("Neue Farben: frisches Spiel erkannt, lerne unbekannte Steine als 2")
+        pal = pal + [(2, cols[i]) for i in unknown]
+        return rect, pal, ref
+    return rect, pal, ref
+
 def cmd_play(args):
     n = int(args[0]) if args and args[0].isdigit() else 20
     settle = float(args[args.index("--settle") + 1]) if "--settle" in args else 0.35
     rect, pal, ref = load()
-    if not rect:
-        rect = find_board(grab())
+    rect, pal, ref = prepare(rect, pal, ref)
     x1, y1, x2, y2 = rect
     cx, cy, d = (x1 + x2) // 2, (y1 + y2) // 2, int((x2 - x1) * 0.3)
     env = dict(os.environ); env.setdefault("MAX_STEPS", str(n + 10)); env.setdefault("HANDY_NO_WAKE", "1")
