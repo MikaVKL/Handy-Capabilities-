@@ -45,6 +45,9 @@ check "nicht freigegeben: Abbruch 3"        '[ $rc -eq 3 ] && grep -q "nicht fre
 setstate com.gabrielecirulli.app2048; $M "spiel 3 Züge" >/dev/null 2>&1
 setstate com.termux; out=$($M "spiel 3 Züge" 2>&1)
 check "Termux vorn: nimmt die letzte App"   'echo "$out" | grep -q "Start: com.gabrielecirulli.app2048"'
+# 5b) Benachrichtigungsleiste vorn -> wartet kurz, dann letzte App
+setstate com.android.systemui; out=$($M "spiel 3 Züge" 2>&1)
+check "Leiste vorn: nimmt die letzte App"   'echo "$out" | grep -q "Start: com.gabrielecirulli.app2048"'
 # 6) --app erzwingt die App
 : > "$W/claude.log"; setstate com.termux
 $M --app com.sec.android.app.popupcalculator "rechne 1+1" >/dev/null 2>&1

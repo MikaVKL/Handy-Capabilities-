@@ -20,9 +20,16 @@ fi
 
 pkg=""
 if [ "$1" = "--app" ]; then pkg="$2"; shift 2; fi
-[ -n "$pkg" ] || pkg=$(foreground_pkg)
+if [ -z "$pkg" ]; then
+  # Direkt nach dem Antippen von START schließt sich noch die Benachrichtigungsleiste bzw. ein Eingabefenster:
+  # bis zu 3 s warten, bis dort die Ziel-App im Vordergrund steht
+  for _ in 1 2 3 4 5 6; do
+    pkg=$(foreground_pkg)
+    case "$pkg" in ""|com.termux|com.termux.api|com.android.systemui|dev.handy.macro) sleep 0.5 ;; *) break ;; esac
+  done
+fi
 case "$pkg" in
-  ""|com.termux|com.termux.api|com.sec.android.app.launcher|com.android.systemui)
+  ""|com.termux|com.termux.api|com.sec.android.app.launcher|com.android.systemui|dev.handy.macro)
     last=$(cat "$STATE/last-app" 2>/dev/null); [ -n "$last" ] && pkg="$last" ;;
 esac
 [ -n "$pkg" ] || { say "Keine App erkannt. Ziel-App öffnen und erneut starten."; exit 1; }

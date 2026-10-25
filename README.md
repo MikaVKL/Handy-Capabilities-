@@ -30,6 +30,16 @@ Auch von Hand: `~/handy/scripts/macro.sh "Auftrag"` oder `macro.sh --app PAKET "
 Die Widget-Knöpfe *Handy-Start* und *Handy-Stop* gibt es weiterhin; die Variante aus `~/.shortcuts/tasks/` läuft im Hintergrund.
 Protokoll: `~/handy/state/log.txt`, Ausgabe: `~/handy/state/claude.out`. Neue Apps in `apps/profiles.tsv` eintragen.
 
+## Schwebendes Bedienfeld (Autoclicker-Stil)
+Kleine App `overlay/` (Paket `dev.handy.macro`): ein Bedienfeld schwebt über allen Apps mit **KI** (Griff zum Verschieben),
+**▶** Start, **■** Stopp, **✎** Auftrag eingeben, **✕** schließen. Die App tut selbst nichts, sie schickt nur Befehle an Termux
+(`macro.sh` / `Handy-Stop.sh`); das Abo läuft weiter über Claude Code in Termux.
+Einrichtung: `git pull`, `./install.sh`, dann `~/handy/overlay/install-overlay.sh` (ADB muss verbunden sein).
+Danach die App **KI-Makro** öffnen → *Bedienfeld einblenden*. Das Fenster ist nicht fokussierbar, die Ziel-App bleibt im Vordergrund
+und wird von der App-Sperre erkannt (kein Umweg über die Benachrichtigungsleiste).
+Hinweise: `allow-external-apps` erlaubt Termux-Befehle von Apps mit der RUN_COMMAND-Erlaubnis; `dev.handy.macro` nicht in `allowed-apps.txt` eintragen.
+Neu bauen: `cd overlay && ANDROID_HOME=… gradle assembleDebug`, APK nach `dist/` kopieren.
+
 ## App-Sperre
 `tap.sh`, `swipe.sh`, `text.sh` und `key.sh` (außer `home`/`back`) prüfen vor jeder Eingabe,
 welche App im Vordergrund ist, und brechen ab, wenn sie nicht in `~/handy/allowed-apps.txt` steht.
