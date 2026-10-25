@@ -18,7 +18,11 @@ final class Checks {
     }
 
     static boolean adbWifi(Context c) {
-        return Settings.Global.getInt(c.getContentResolver(), "adb_wifi_enabled", 0) == 1;
+        try {
+            return Settings.Global.getInt(c.getContentResolver(), "adb_wifi_enabled", 0) == 1;
+        } catch (RuntimeException e) {
+            return false;
+        }
     }
 
     /** true = an, false = aus, null = nicht ermittelbar. Samsung nennt den Auto Blocker intern "rampart"
@@ -28,7 +32,12 @@ final class Checks {
                 "rampart_blocked_at_cmd", "rampart_blocked_keystring"};
         boolean found = false;
         for (String key : keys) {
-            int v = Settings.Secure.getInt(c.getContentResolver(), key, -1);
+            int v;
+            try {
+                v = Settings.Secure.getInt(c.getContentResolver(), key, -1);
+            } catch (RuntimeException e) {     // nicht lesbare Systemeinstellung (SecurityException)
+                return null;
+            }
             if (v < 0) continue;
             found = true;
             if (v == 1) return true;
