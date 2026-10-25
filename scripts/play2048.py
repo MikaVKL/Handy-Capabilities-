@@ -187,36 +187,57 @@ def norm_color(fr, rect, r, c, gap_ref):
     g = gap_at(fr, rect, r, c)
     return tuple(max(0, min(255, col[k] - (g[k] - gap_ref[k]))) for k in range(3))
 
-def read_cells(fr, rect, pal, gap_ref=None):
-    """Gibt (Werte mit None für unbekannte Farben, gemessene Farben) zurück."""
+def read_cells(fr, rect, pal, gap_ref=None, loose=False):
+    """Gibt (Werte mit None für unbekannte Farben, gemessene Farben) zurück.
+    loose (nur beim Start, wenn es noch keine Vorhersage gibt): kleine Kacheln (bis 64) mit deutlich abweichender Farbe
+    (Leuchten) werden dem eindeutig nächsten Wert zugeordnet; die gelben großen Kacheln liegen zu dicht beieinander."""
     vals, cols = [], []
     for r in range(4):
         for c in range(4):
             col = norm_color(fr, rect, r, c, gap_ref)
             v, d = classify(col, pal)
-            vals.append(v if d <= 14 or (v == 0 and d <= EMPTY_TOL) else None)
+            ok = d <= 14 or (v == 0 and d <= EMPTY_TOL)
+            if not ok and loose and 2 <= v <= 64 and d <= 40:
+                other = min((dist(col, rgb) for w, rgb in pal if w != v), default=999)
+                ok = other - d >= 12
+            vals.append(v if ok else None)
             cols.append(col)
     return vals, cols
 
 def infer_new_tile(vals, cols, pal):
     """Unbekannte Kachelfarben beim Start eines Laufs (keine Vorhersage vorhanden). Reihenfolge:
-    1. Endbrett des letzten Laufs: stimmen alle erkannten Felder damit überein, übernehmen die unbekannten dessen Werte
-       (Fortsetzen derselben Partie).
+    1. Zuletzt gemerktes Brett (vor dem letzten Wischen oder die Vorhersage danach): stimmen alle erkannten Felder
+       damit überein, übernehmen die unbekannten dessen Werte (Fortsetzen derselben Partie).
     2. Sonst nur ein Stein mit neuer Farbe: nächsthöherer Wert (2 x größter bekannter Wert), wenn die bekannten Werte
        lückenlos sind. Nur im Speicher; im Spiel lernt die Vorhersageprüfung die Farben dauerhaft."""
     unknown = [i for i, v in enumerate(vals) if v is None]
-    if not unknown or len(unknown) > 2:
+    if not unknown or len(unknown) > 4:
         return False        # viele unbekannte Felder = Schleier, Werbung o. ä., kein neuer Stein
     try:
-        last = json.load(open(LAST))["board"]
-    except (OSError, ValueError, KeyError):
-        last = None
-    if last and all(vals[i] == last[i] for i in range(16) if vals[i] is not None) and all(last[i] for i in unknown):
-        for i in unknown:
-            pal.append((last[i], cols[i]))
-        print("Unbekannte Farben aus dem Endbrett des letzten Laufs übernommen:",
-              ", ".join(f"{last[i]}" for i in unknown), flush=True)
-        return True
+        saved = json.load(open(LAST))
+    except (OSError, ValueError):
+        saved = {}
+    for cand in (saved.get("pred"), saved.get("board")):
+        if not cand or len(cand) != 16 or not all(cand[i] for i in unknown):
+            continue
+        spawned = 0
+        fit = True
+        for i in range(16):
+            if vals[i] is None or vals[i] == cand[i]:
+                continue
+            if cand[i] == 0 and vals[i] in (2, 4) and not spawned:
+                spawned = 1        # neuer Stein nach dem letzten Wischen
+                continue
+            fit = False
+            break
+        if fit:
+            for i in unknown:
+                pal.append((cand[i], cols[i]))
+            print("Unbekannte Farben aus dem zuletzt gemerkten Brett übernommen:",
+                  ", ".join(str(cand[i]) for i in unknown), flush=True)
+            return True
+    if len(unknown) > 2:
+        return False
     try:
         learned = json.load(open(CALIB)).get("palette")
     except (OSError, ValueError):
@@ -234,10 +255,10 @@ def infer_new_tile(vals, cols, pal):
     print(f"Neue Kachelfarbe {cols[unknown[0]]}: als {new} angenommen", flush=True)
     return True
 
-def read_board(fr, rect, pal, gap_ref=None):
-    vals, cols = read_cells(fr, rect, pal, gap_ref)
+def read_board(fr, rect, pal, gap_ref=None, loose=False):
+    vals, cols = read_cells(fr, rect, pal, gap_ref, loose)
     if None in vals and infer_new_tile(vals, cols, pal):
-        vals, cols = read_cells(fr, rect, pal, gap_ref)
+        vals, cols = read_cells(fr, rect, pal, gap_ref, loose)
     if all(v == 0 for v in vals):
         raise Unclear("Kein Stein erkennbar (Spiel vorbei, Anzeige verdeckt oder 2048 nicht im Vordergrund?)")
     bad = [(i // 4, i % 4, cols[i]) for i, v in enumerate(vals) if v is None]
@@ -374,6 +395,13 @@ def cmd_read(_):
     print(fmt(read_board(fr, rect, pal, ref)))
     return 0
 
+def save_last(board, pred=None):
+    """Merkt Brett vor dem Wischen und die Vorhersage danach: bricht ein Lauf ab, passt der Bildschirm zu einem von beiden."""
+    try:
+        json.dump({"board": list(board), "pred": list(pred) if pred else None}, open(LAST, "w"))
+    except OSError:
+        pass
+
 def focus():
     """Fenster mit Eingabefokus (Paket/Activity); leer, wenn nicht ermittelbar."""
     try:
@@ -410,7 +438,7 @@ def prepare(rect, pal, ref):
     ref = gap_median(fr, rect)
     for _ in range(4):
         fr = grab()
-        vals, cols = read_cells(fr, rect, pal, ref)
+        vals, cols = read_cells(fr, rect, pal, ref, loose=True)
         if None not in vals:
             return rect, pal, ref
         time.sleep(0.5)
@@ -441,7 +469,7 @@ def cmd_play(args):
     back_used = 0
     t0 = time.time()
     focus0 = focus()
-    board = read_board(grab(), rect, pal, ref)
+    board = read_board(grab(), rect, pal, ref, loose=True)
     while done < n and not (limit and time.time() - t0 >= limit):
         t = time.time(); seq = S.plan(board, 1); tm["Rechnen"] += time.time() - t
         if not seq:
@@ -451,6 +479,7 @@ def cmd_play(args):
                 break
             x1s, y1s, x2s, y2s = {"left": (cx + d, cy, cx - d, cy), "right": (cx - d, cy, cx + d, cy),
                                   "up": (cx, cy + d, cx, cy - d), "down": (cx, cy - d, cx, cy + d)}[dname]
+            save_last(board, S.move(board, dname)[0])
             t = time.time(); r = subprocess.run([SWIPE, str(x1s), str(y1s), str(x2s), str(y2s), "150"], env=env); tm["Wischen"] += time.time() - t
             if r.returncode != 0:
                 print(f"ABBRUCH: swipe.sh endete mit Code {r.returncode}"); return r.returncode
@@ -512,10 +541,7 @@ def cmd_play(args):
             break
         if halted:
             break
-    try:
-        json.dump({"board": list(board)}, open(LAST, "w"))
-    except OSError:
-        pass
+    save_last(board)
     secs = time.time() - t0
     print(f"Züge: {done}, geschätzter Punktestand: {score}, größte Kachel: {max(board)}, Dauer: {secs:.0f}s ({secs/max(done,1):.1f}s pro Zug)")
     print("Zeit pro Zug: " + ", ".join(f"{k} {v / max(done, 1):.2f}s" for k, v in tm.items()))
