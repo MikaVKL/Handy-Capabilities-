@@ -254,6 +254,7 @@ def check(cols, expected, samples, allow_spawn):
     """Passt das Bild zum erwarteten Brett? Gibt (ok, Brett mit neuem Stein, neue Proben) zurück.
     Nur ein einziger neuer Stein (2 oder 4) in einem leeren Feld ist erlaubt, und nur wenn allow_spawn gesetzt ist."""
     spawn, learned, out = None, [], list(expected)
+    suspects = []
     for i, e in enumerate(expected):
         col = cols[i]
         d0 = near(col, 0, samples)
@@ -273,7 +274,14 @@ def check(cols, expected, samples, allow_spawn):
             continue
         vb, db = classify(col, samples)
         if d > 22 or (vb != e and db + 6 < d):
-            return False, None, []
+            # Abweichende Farbe: meist Leuchten einer Nachbarkachel. Ein bis zwei solche Felder gelten als Farbvariante
+            # des erwarteten Werts (Vorhersage ist exakt), außer die Farbe gleicht fast genau einem anderen Wert.
+            if vb != e and db < 6:
+                return False, None, []
+            suspects.append((e, col))
+    if len(suspects) > 2:
+        return False, None, []
+    learned.extend(suspects)
     if spawn is not None:
         col = cols[spawn]
         d2, d4 = near(col, 2, samples), near(col, 4, samples)
