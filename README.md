@@ -19,10 +19,16 @@ Wireless-Debugging müssen auf dem Gerät ausprobiert werden.
 6. Auf dem Startbildschirm ein **Termux:Widget** anlegen: Knöpfe *Handy-Start* und *Handy-Stop*.
 7. Erlaubte Apps in `~/handy/allowed-apps.txt` eintragen (Paketnamen, z. B. `com.android.calculator2`).
 
-## Benutzung
-- *Handy-Start* tippen, Auftrag eingeben, in die Ziel-App wechseln.
-- *Handy-Stop* bricht sofort ab. Außerdem endet jeder Lauf nach 25 Schritten (`MAX_STEPS`).
-- Protokoll: `~/handy/state/log.txt`, Ausgabe: `~/handy/state/claude.out`.
+## Benutzung (KI-Makro: "Das hier ist …, mache …")
+1. Einmal `~/handy/scripts/panel.sh idle` ausführen: Es erscheint eine Dauer-Benachrichtigung **KI-Makro bereit** mit dem Knopf **START**.
+2. Ziel-App öffnen (sie muss in `allowed-apps.txt` stehen), Benachrichtigungsleiste herunterziehen, **START** tippen, Auftrag eingeben
+   (zum Beispiel "spiel 40 Züge" bei 2048 oder "rechne 7+8" im Taschenrechner).
+3. `macro.sh` erkennt die App im Vordergrund, lädt ihren Steckbrief (`apps/profiles.tsv`) und führt den Auftrag aus: direkt mit dem lokalen
+   Werkzeug (bei 2048 mit Zahl) oder über Claude Code (`HANDY_MODEL`, Standard `haiku`). Während des Laufs steht in der Benachrichtigung **STOPP**.
+4. Am Ende kommt die Meldung **KI-Makro fertig** mit dem Ergebnis, danach ist der START-Knopf wieder da.
+Auch von Hand: `~/handy/scripts/macro.sh "Auftrag"` oder `macro.sh --app PAKET "Auftrag"`.
+Die Widget-Knöpfe *Handy-Start* und *Handy-Stop* gibt es weiterhin; die Variante aus `~/.shortcuts/tasks/` läuft im Hintergrund.
+Protokoll: `~/handy/state/log.txt`, Ausgabe: `~/handy/state/claude.out`. Neue Apps in `apps/profiles.tsv` eintragen.
 
 ## App-Sperre
 `tap.sh`, `swipe.sh`, `text.sh` und `key.sh` (außer `home`/`back`) prüfen vor jeder Eingabe,

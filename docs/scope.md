@@ -2,6 +2,11 @@
 
 Ziel: bei Bedarf eine beliebige (unkritische) App ausprobieren und sehen, wie viel sich abnehmen lässt.
 
+## Aufträge ausführen (macro.sh)
+`macro.sh` ist der gemeinsame Einstieg für "Das hier ist …, mache …": App im Vordergrund erkennen, Freigabe prüfen, Steckbrief laden,
+Auftrag direkt (lokales Werkzeug) oder über Claude ausführen. Die Zuordnung steht in `apps/profiles.tsv`
+(Paket, Steckbrief, optional ein lokales Werkzeug). Nach der Erkundung einer neuen App dort eine Zeile ergänzen.
+
 ## Einstieg in eine neue App (4 Schritte)
 1. **Freigeben:** `allow-app.sh NAME` (sucht den Paketnamen, warnt bei Geld/Konten/Kommunikation/System).
 2. **Einschätzen ohne Modell:** `probe.sh PAKET` öffnet die App und meldet REICH, DÜNN, WEBVIEW oder LEER.

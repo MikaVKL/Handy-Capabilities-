@@ -1,8 +1,12 @@
 #!/data/data/com.termux/files/usr/bin/bash
-# Termux:Widget-Knopf "Stopp": sofort abbrechen.
+# Stopp: sofort abbrechen (STOP-Datei sperrt alle Eingaben, laufende Prozesse werden beendet).
 STATE="$HOME/handy/state"; mkdir -p "$STATE"
 touch "$STATE/STOP"
-[ -f "$STATE/pid" ] && kill "$(cat "$STATE/pid")" 2>/dev/null
+if [ -f "$STATE/pid" ]; then
+  pid=$(cat "$STATE/pid")
+  command -v pkill >/dev/null 2>&1 && pkill -P "$pid" 2>/dev/null
+  kill "$pid" 2>/dev/null
+fi
 "$HOME/handy/scripts/screen-timeout.sh" off
-"$HOME/handy/scripts/panel.sh" off
+"$HOME/handy/scripts/panel.sh" idle
 termux-toast "Gestoppt"

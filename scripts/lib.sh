@@ -41,6 +41,7 @@ app_guard() {
   for i in 1 2 3; do
     pkg=$(foreground_pkg)
     if [ -n "$pkg" ] && grep -qxF "$pkg" "$HANDY_DIR/allowed-apps.txt" 2>/dev/null; then
+      echo "$pkg" > "$STATE/last-app"
       return 0
     fi
     [ "$i" -lt 3 ] && sleep 0.7

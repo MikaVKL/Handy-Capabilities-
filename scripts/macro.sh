@@ -1,0 +1,56 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# KI-Makro: "Das hier ist <App im Vordergrund>, mache <Auftrag>".
+# Erkennt die App, prüft die Freigabe, lädt den Steckbrief (apps/profiles.tsv) und führt den Auftrag aus:
+# direkt mit dem lokalen Werkzeug (z. B. 2048) oder über Claude Code.
+# Nutzung: macro.sh                     (Auftrag im Dialog eingeben; App = Vordergrund)
+#          macro.sh "Auftrag"           (App = Vordergrund)
+#          macro.sh --app PAKET "Auftrag"
+DIR="$(cd "$(dirname "$0")" && pwd)"; . "$DIR/lib.sh"
+APPS="$HANDY_DIR/apps"; OUT="$STATE/claude.out"
+say() { echo "$*"; termux-toast "$*" >/dev/null 2>&1 || true; }
+
+pkg=""
+if [ "$1" = "--app" ]; then pkg="$2"; shift 2; fi
+[ -n "$pkg" ] || pkg=$(foreground_pkg)
+case "$pkg" in
+  ""|com.termux|com.termux.api|com.sec.android.app.launcher|com.android.systemui)
+    last=$(cat "$STATE/last-app" 2>/dev/null); [ -n "$last" ] && pkg="$last" ;;
+esac
+[ -n "$pkg" ] || { say "Keine App erkannt. Ziel-App öffnen und erneut starten."; exit 1; }
+grep -qxF "$pkg" "$HANDY_DIR/allowed-apps.txt" 2>/dev/null || { say "App nicht freigegeben: $pkg (allow-app.sh)"; exit 3; }
+
+task="$*"
+if [ -z "$task" ]; then
+  task=$(termux-dialog text -t "Das hier ist $pkg. Was soll ich tun?" 2>/dev/null | sed -n 's/.*"text": *"\(.*\)".*/\1/p')
+fi
+[ -n "$task" ] || exit 0
+
+profile=""; direct=""
+if [ -f "$APPS/profiles.tsv" ]; then
+  line=$(grep -v '^#' "$APPS/profiles.tsv" | awk -F'\t' -v p="$pkg" '$1==p {print; exit}')
+  profile=$(printf '%s' "$line" | cut -f2); direct=$(printf '%s' "$line" | cut -f3)
+fi
+
+"$DIR/start-run.sh" || { say "Nicht startklar (ADB verbunden? connect.sh)"; exit 1; }
+echo $$ > "$STATE/pid"
+export MAX_STEPS="${HANDY_MAX_STEPS:-150}"
+log "macro: $pkg | $task"
+say "Start: $pkg"
+
+cd "$HANDY_DIR" || exit 1
+if [ "$direct" = "play2048" ] && [[ "$task" =~ ([0-9]+) ]] && [ "${BASH_REMATCH[1]}" -le 500 ]; then
+  python3 "$DIR/play2048.py" play "${BASH_REMATCH[1]}" > "$OUT" 2>&1
+else
+  model="${HANDY_MODEL:-haiku}"
+  prompt="Du bedienst das Handy über die Skripte in $DIR (siehe CLAUDE.md). Die App im Vordergrund beim Start war $pkg."
+  [ -n "$profile" ] && prompt="$prompt Lies zuerst den Steckbrief $APPS/$profile."
+  prompt="$prompt Auftrag des Nutzers: $task
+Bei normalen Apps zuerst ui.sh, sonst Screenshots. Keine Zwischenkommentare; am Ende ein bis zwei Sätze mit dem Ergebnis."
+  claude -p "$prompt" --model "$model" --allowedTools "Bash($DIR/*)" "Read" > "$OUT" 2>&1
+fi
+
+summary=$(tail -n 3 "$OUT" 2>/dev/null | tr '\n' ' ' | cut -c1-200)
+"$DIR/end-run.sh" >/dev/null 2>&1
+termux-notification --id handy-result --title "KI-Makro fertig" --content "${summary:-fertig}" >/dev/null 2>&1 || true
+"$DIR/panel.sh" idle >/dev/null 2>&1 || true
+echo "$summary"

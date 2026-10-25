@@ -1,0 +1,4 @@
+# Paket	Steckbrief	direkt (Werkzeug für Aufträge mit Zahl)
+# Spalten durch Tabulator trennen. "direkt" ist optional; play2048 spielt einen Auftrag mit Zugzahl ohne Modell.
+com.gabrielecirulli.app2048	2048.md	play2048
+com.sec.android.app.popupcalculator	calculator.md	

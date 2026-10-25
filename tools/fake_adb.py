@@ -82,6 +82,10 @@ def spawn(b):
 def main(a):
     if os.environ.get("FAKE_FAIL") == "1":
         print("error: no devices/emulators found", file=sys.stderr); return 1
+    if a[:1] == ["get-state"]:
+        print("device"); return 0
+    if a[:4] == ["shell", "settings", "get", "system"]:
+        print("30000"); return 0
     st = load()
     if a[:2] == ["exec-out", "screencap"]:
         sys.stdout.buffer.write(render(st)); return 0
