@@ -34,7 +34,7 @@ Protokoll: `~/handy/state/log.txt`, Ausgabe: `~/handy/state/claude.out`. Neue Ap
 Kleine App `overlay/` (Paket `dev.handy.macro`): ein Bedienfeld schwebt über allen Apps mit **KI** (Griff zum Verschieben),
 **▶** Start, **■** Stopp, **✎** Auftrag eingeben, **✕** schließen. Die App tut selbst nichts, sie schickt nur Befehle an Termux
 (`macro.sh` / `Handy-Stop.sh`); das Abo läuft weiter über Claude Code in Termux.
-Einrichtung: `git pull`, `./install.sh`, dann `~/handy/overlay/install-overlay.sh` (ADB muss verbunden sein).
+Einrichtung: im Repo-Ordner (`~/Handy-Capabilities-`): `git pull && ./install.sh && ./overlay/install-overlay.sh` (ADB muss verbunden sein).
 Danach die App **KI-Makro** öffnen → *Bedienfeld einblenden*. Das Fenster ist nicht fokussierbar, die Ziel-App bleibt im Vordergrund
 und wird von der App-Sperre erkannt (kein Umweg über die Benachrichtigungsleiste).
 Hinweise: `allow-external-apps` erlaubt Termux-Befehle von Apps mit der RUN_COMMAND-Erlaubnis; `dev.handy.macro` nicht in `allowed-apps.txt` eintragen.
