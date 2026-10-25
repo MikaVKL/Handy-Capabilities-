@@ -9,6 +9,15 @@ DIR="$(cd "$(dirname "$0")" && pwd)"; . "$DIR/lib.sh"
 APPS="$HANDY_DIR/apps"; OUT="$STATE/claude.out"
 say() { echo "$*"; termux-toast "$*" >/dev/null 2>&1 || true; }
 
+# ADB prüfen; wenn nicht verbunden, einmal selbst verbinden (mDNS), sonst klar melden
+if [ "$(adb get-state 2>/dev/null)" != "device" ]; then
+  "$DIR/connect.sh" >/dev/null 2>&1
+  if [ "$(adb get-state 2>/dev/null)" != "device" ]; then
+    say "ADB nicht verbunden. Wireless debugging an? In Termux: connect.sh PORT"
+    exit 1
+  fi
+fi
+
 pkg=""
 if [ "$1" = "--app" ]; then pkg="$2"; shift 2; fi
 [ -n "$pkg" ] || pkg=$(foreground_pkg)

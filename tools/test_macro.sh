@@ -55,7 +55,7 @@ $M >/dev/null 2>&1
 check "Auftrag aus dem Dialog"              'grep -q "rechne 7+8" "$W/claude.log"'
 # 8) ADB nicht verbunden
 setstate com.sec.android.app.popupcalculator; out=$(FAKE_FAIL=1 $M "rechne 2+2" 2>&1); rc=$?
-check "ADB fehlt: Abbruch"                  '[ $rc -eq 1 ] && echo "$out" | grep -q "Nicht startklar"'
+check "ADB fehlt: klare Meldung"            '[ $rc -eq 1 ] && echo "$out" | grep -q "ADB nicht verbunden"'
 # 9) Benachrichtigung mit START-Knopf
 : > "$W/termux.log"; "$HANDY_DIR/scripts/panel.sh" idle
 check "panel idle: START-Knopf"             'grep -q "START" "$W/termux.log" && grep -q "Handy-Start.sh" "$W/termux.log"'
