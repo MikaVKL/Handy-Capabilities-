@@ -540,6 +540,7 @@ def cmd_play(args):
                     except Unclear as e:
                         err = e; time.sleep(0.5); continue
                     ok, nb, learned = check(cols, pred, pal, True)
+                    why_pred = WHY
                     if ok:
                         new = nb
                         new_samples = [(v, c) for v, c in learned if not any(abs(v - w) == 0 and dist(c, rgb) < 3 for w, rgb in pal)]
@@ -576,7 +577,7 @@ def cmd_play(args):
                     for line in explain(last_cols, last_pred, pal):
                         print("  ", line)
                     print("   Erwartetes Brett:", fmt(last_pred))
-                    print("   Grund der Ablehnung:", WHY)
+                    print("   Grund der Ablehnung (erwartetes Brett):", why_pred)
                 halted = True; break
             board = new
             if halted:
